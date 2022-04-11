@@ -1,23 +1,24 @@
-#include "helper_cuda.h"
-#include <cstdio>
 #include <cuda_runtime.h>
+#include <cstdio>
+#include "helper_cuda.h"
 
-#include "CudaAllocator.h"
 #include <vector>
+#include "CudaAllocator.h"
 
-template <class Func> __global__ void grid_stride_loop(size_t n, Func func) {
-  for (int i = blockDim.x * blockIdx.x + threadIdx.x; i < n;
-       i += gridDim.x * blockDim.x) {
+template <class Func>
+__global__ void grid_stride_loop(size_t n, Func func) {
+  for (int i = blockDim.x * blockIdx.x + threadIdx.x; i < n; i += gridDim.x * blockDim.x) {
     func(i);
   }
 }
 
 struct MyFunctor {
-  __device__ void operator()(int i) const { printf("number %d\n", i); }
+  __device__ void operator()(int i) const {
+    printf("number %d\n", i);
+  }
 };
 
-int main(int argc, char const *argv[]) {
-
+int main(int argc, char const* argv[]) {
   int n = 256;
   // grid_stride_loop<<<32, 64>>>(n, MyFunctor{});
 
@@ -26,8 +27,7 @@ int main(int argc, char const *argv[]) {
   // add --extended-lambda to nvcc
   // target_compile_options(06functional PUBLIC
   // $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
-  grid_stride_loop<<<16, 16>>>(
-      n, [] __device__(int i) { printf("lambda0 info: number %d\n", i); });
+  grid_stride_loop<<<16, 16>>>(n, [] __device__(int i) { printf("lambda0 info: number %d\n", i); });
 
   checkCudaErrors(cudaDeviceSynchronize());
 
@@ -43,4 +43,3 @@ int main(int argc, char const *argv[]) {
 
   return 0;
 }
-

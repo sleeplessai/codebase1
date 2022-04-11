@@ -1,7 +1,7 @@
-#include <cstdio>
 #include <cuda_runtime.h>
+#include <cstdio>
 
-__host__ __device__ void greet(const char *info) {
+__host__ __device__ void greet(const char* info) {
   // __cuda_arch__ gtx1080 sm61; rtx2080 sm75; ga100 sm80
 
 #ifdef __CUDA_ARCH__
@@ -36,4 +36,3 @@ int main() {
 
   return 0;
 }
-

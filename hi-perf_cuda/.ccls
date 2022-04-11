@@ -1,0 +1,6 @@
+gcc
+-I
+.
+-stdLib=libc++
+-std=c++17
+

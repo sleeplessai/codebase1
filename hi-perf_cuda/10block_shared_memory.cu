@@ -1,14 +1,12 @@
-#include "CudaAllocator.h"
-#include "helper_cuda.h"
 #include <cuda_runtime.h>
 #include <iostream>
 #include <numeric>
-
-#define __Enable__syncthreads false
+#include "CudaAllocator.h"
+#include "helper_cuda.h"
 
 const int n = 1 << 20, n_threads = 1 << 10;
 
-__global__ void parallel_sum_shared(int64_t *arr, int64_t *sum, int n) {
+__global__ void parallel_sum_shared(int64_t* arr, int64_t* sum, int n) {
   // Block-local storage (BLS) compiler optimization
 
   __shared__ volatile int64_t local_sum[n_threads];
@@ -24,34 +22,23 @@ __global__ void parallel_sum_shared(int64_t *arr, int64_t *sum, int n) {
     temp_sum += arr[t];
   }
   local_sum[j] = temp_sum;
-
-#if __Enable__syncthreads
   __syncthreads();
-#endif
   if (j < n_threads / 2) {
     local_sum[j] += local_sum[j + n_threads / 2];
   }
-#if __Enable__syncthreads
   __syncthreads();
-#endif
   if (j < n_threads / 4) {
     local_sum[j] += local_sum[j + n_threads / 4];
   }
-#if __Enable__syncthreads
   __syncthreads();
-#endif
   if (j < n_threads / 8) {
     local_sum[j] += local_sum[j + n_threads / 8];
   }
-#if __Enable__syncthreads
   __syncthreads();
-#endif
   if (j < n_threads / 16) {
     local_sum[j] += local_sum[j + n_threads / 16];
   }
-#if __Enable__syncthreads
   __syncthreads();
-#endif
   // Warp (32 threads as a group) SM dispatches a warp once
   // Let warp in a single If block as possible (warp divergence)
   // So, we merge when j < 32 if branch
@@ -68,7 +55,7 @@ __global__ void parallel_sum_shared(int64_t *arr, int64_t *sum, int n) {
   }
 }
 
-int main(int argc, char const *argv[]) {
+int main(int argc, char const* argv[]) {
   // Streaming Multiprocessors (SM) process threads
   // on multiple blocks with shared memory space.
 
@@ -85,18 +72,15 @@ int main(int argc, char const *argv[]) {
   // blockDim.x should be an integer multiple of 3
   // parallel_sum_shared<<<n / n_threads, n_threads>>>(arr.data(), sum.data(),
   // n);
-  parallel_sum_shared<<<n / (4 * n_threads), n_threads>>>(arr.data(),
-                                                          sum.data(), n);
+  parallel_sum_shared<<<n / (4 * n_threads), n_threads>>>(arr.data(), sum.data(), n);
   checkCudaErrors(cudaDeviceSynchronize());
 
   // int64_t sum_res = std::accumulate(sum.begin(), sum.end(), 0);
   int64_t sum_res = 0;
-  std::for_each(sum.begin(), sum.end(),
-                [&sum_res](const int &x) { sum_res += x; });
+  std::for_each(sum.begin(), sum.end(), [&sum_res](const int& x) { sum_res += x; });
 
   std::cout << "sum_on_cpu = " << sum_cpu << std::endl;
   std::cout << "sum_on_gpu = " << sum_res << std::endl;
 
   return 0;
 }
-
