@@ -1,8 +1,9 @@
 ﻿#include <GL/glew.h>
 #include <GLFW/glfw3.h>
+
 #include <iostream>
 
-#include "utils.h"
+#include "deprecated_utils.h"
 
 static uint32_t CompileShader(uint32_t shader_t, const std::string& source) {
   uint32_t id = glCreateShader(shader_t);
@@ -15,12 +16,11 @@ static uint32_t CompileShader(uint32_t shader_t, const std::string& source) {
   if (result == GL_FALSE) {
     int length;
     glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-    // alloca() uses to allocate dynamic space on stack heap.
+    // alloca() uses to allocate dynamic space on the stack.
     char* message = (char*)alloca(sizeof(length));
     glGetShaderInfoLog(id, length, &length, message);
     std::cerr << "Failed to compile shader!" << std::endl;
-    std::cerr << "Error occurred at "
-              << (shader_t == GL_VERTEX_SHADER ? "vertex" : "fragment")
+    std::cerr << "Error occurred at " << (shader_t == GL_VERTEX_SHADER ? "vertex" : "fragment")
               << std::endl;
     std::cerr << message << std::endl;
     glDeleteShader(id);
@@ -29,8 +29,7 @@ static uint32_t CompileShader(uint32_t shader_t, const std::string& source) {
   return id;
 }
 
-static int CreateShader(const std::string& vertexShader,
-                        const std::string& fragmentShader) {
+static int CreateShader(const std::string& vertexShader, const std::string& fragmentShader) {
   uint32_t program = glCreateProgram();
   uint32_t vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
   uint32_t fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
@@ -70,7 +69,6 @@ int main() {
   std::cout << "GL_VERSION: " << glGetString(GL_VERSION) << std::endl;
 
   // Use buffer-shader to render a triangle
-
   float positions[6] = {-0.5f, -0.5f, 0.0f, 0.5f, 0.5f, -0.5f};
 
   uint32_t buffer;
@@ -83,28 +81,18 @@ int main() {
 
   // Read shaders from .shader files
 
-#define READ_SEPARATE_SHADERS
+//#define READ_SEPARATE_SHADERS
 #ifdef READ_SEPARATE_SHADERS
-
   fs::path vsPath = fs::path("../../shader/vertex0.shader");
   fs::path fsPath = fs::path("../../shader/fragment0.shader");
-  std::string vertexShader = jammygl::ReadShaderSource(vsPath);
-  std::string fragmentShader = jammygl::ReadShaderSource(fsPath);
-
-  // jammygl::WriteShaderSource(vertexShader);
-  // jammygl::WriteShaderSource(fragmentShader);
-
+  std::string vertexShader = __read_single_shader(vsPath);
+  std::string fragmentShader = __read_single_shader(fsPath);
   uint32_t shader = CreateShader(vertexShader, fragmentShader);
-
 #else
   fs::path shPath = fs::path("../../shader/basic0.shader");
-  std::vector basicShader = jammygl::ParseShaderSource(shPath);
-
-  // jammygl::WriteShaderSource(basicShader[0]);
-  // jammygl::WriteShaderSource(basicShader[1]);
-
+  std::vector basicShader = __parse_vertex_and_fragment_shaders(shPath);
+  __print_vertex_and_fragment_shaders(basicShader);
   uint32_t shader = CreateShader(basicShader[0], basicShader[1]);
-
 #endif
 
   glUseProgram(shader);

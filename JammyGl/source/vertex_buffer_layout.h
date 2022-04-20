@@ -1,7 +1,7 @@
 #pragma once
+
 #include <glad/glad.h>
 #include <vector>
-
 #include "renderer.h"
 
 struct VertexBufferElement {
@@ -9,12 +9,10 @@ struct VertexBufferElement {
   unsigned int count;
   unsigned char normalized;
 
-  VertexBufferElement(unsigned int type,
-                      unsigned int count,
-                      unsigned char normalized)
+  VertexBufferElement(unsigned int type, unsigned int count, unsigned char normalized)
       : type(type), count(count), normalized(normalized) {}
 
-  static unsigned int GetSizeofType(unsigned int type) {
+  static size_t GetSizeofType(unsigned int type) {
     switch (type) {
       case (GL_FLOAT):
         return 4;
@@ -36,8 +34,12 @@ class VertexBufferLayout {
  public:
   VertexBufferLayout() : m_Stride(0) {}
 
-  const auto GetElements() const { return m_Elements; }
-  unsigned int GetStride() const { return m_Stride; }
+  const auto GetElements() const {
+    return m_Elements;
+  }
+  unsigned int GetStride() const {
+    return m_Stride;
+  }
 
   template <typename T>
   void Push(unsigned int count) {

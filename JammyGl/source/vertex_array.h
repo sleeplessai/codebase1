@@ -1,12 +1,13 @@
 #pragma once
 
 #include "vertex_buffer.h"
-#include "vertex_buffer_layout.h"
 
-//namespace jammygl {
+class VertexBufferLayout;
+
 class VertexArray {
  private:
-  unsigned int m_RendererID;
+  unsigned int m_RendererId;
+
  public:
   VertexArray();
   ~VertexArray();
@@ -16,4 +17,3 @@ class VertexArray {
   void Bind() const;
   void Unbind() const;
 };
-//}  // namespace jammygl

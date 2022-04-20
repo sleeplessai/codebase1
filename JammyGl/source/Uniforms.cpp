@@ -4,7 +4,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
-#include "utils.h"
+#include "deprecated_utils.h"
 
 #define MsvcAssert(x) \
   if (!(x))           \
@@ -24,8 +24,8 @@ static void ClearGlError() {
 
 static bool CheckGlError(const char* function, const char* file, int line) {
   while (GLenum error = glGetError()) {
-    std::cerr << "[OpenGL Error] (" << std::hex << error << "): " << function
-              << " " << file << ":" << std::dec << line << std::endl;
+    std::cerr << "[OpenGL Error] (" << std::hex << error << "): " << function << " " << file << ":"
+              << std::dec << line << std::endl;
     // Check hex error code in glew.h header file
     return false;
   }
@@ -47,8 +47,7 @@ static uint32_t CompileShader(uint32_t shader_t, const std::string& source) {
     char* message = (char*)alloca(sizeof(length));
     glGetShaderInfoLog(id, length, &length, message);
     std::cerr << "Failed to compile shader!" << std::endl;
-    std::cerr << "Error occurred at "
-              << (shader_t == GL_VERTEX_SHADER ? "vertex" : "fragment")
+    std::cerr << "Error occurred at " << (shader_t == GL_VERTEX_SHADER ? "vertex" : "fragment")
               << std::endl;
     std::cerr << message << std::endl;
     glDeleteShader(id);
@@ -57,8 +56,7 @@ static uint32_t CompileShader(uint32_t shader_t, const std::string& source) {
   return id;
 }
 
-static int CreateShader(const std::string& vertexShader,
-                        const std::string& fragmentShader) {
+static int CreateShader(const std::string& vertexShader, const std::string& fragmentShader) {
   uint32_t program = glCreateProgram();
   uint32_t vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
   uint32_t fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
@@ -81,12 +79,12 @@ int main() {
   if (!glfwInit())
     return -1;
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   /* Create a windowed mode window and its OpenGL context */
-  window = glfwCreateWindow(640, 480, "Rectangle", NULL, NULL);
+  window = glfwCreateWindow(640, 480, "Colorful Rectangle", NULL, NULL);
   if (!window) {
     glfwTerminate();
     return -1;
@@ -116,8 +114,7 @@ int main() {
   uint32_t buffer;
   GlCall(glGenBuffers(1, &buffer));
   GlCall(glBindBuffer(GL_ARRAY_BUFFER, buffer));
-  GlCall(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 8, positions,
-                      GL_STATIC_DRAW));
+  GlCall(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 8, positions, GL_STATIC_DRAW));
 
   GlCall(glEnableVertexAttribArray(0));
   // glVertexAttribPointer links Array_buffer buffer to VAO
@@ -126,14 +123,12 @@ int main() {
   uint32_t ibo;
   GlCall(glGenBuffers(1, &ibo));
   GlCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo));
-  GlCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * 6, indices,
-                      GL_STATIC_DRAW));
+  GlCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * 6, indices, GL_STATIC_DRAW));
 
   // Read shaders from .shader files
   fs::path shPath = fs::path("../../shader/uniforms0.shader");
-  std::vector basicShader = jammygl::ParseShaderSource(shPath);
-
-  jammygl::WriteShaderSource(basicShader);
+  std::vector basicShader = __parse_vertex_and_fragment_shaders(shPath);
+  __print_vertex_and_fragment_shaders(basicShader);
   uint32_t shader = CreateShader(basicShader[0], basicShader[1]);
   // GlCall(glUseProgram(shader));
 

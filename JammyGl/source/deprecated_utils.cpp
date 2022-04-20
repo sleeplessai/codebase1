@@ -1,8 +1,12 @@
-#include "utils.h"
+#include "deprecated_utils.h"
 
-std::string jammygl::ReadShaderSource(const fs::path& path) {
-  std::string src{};
-  std::ifstream fin(path, std::ios::in);
+#include <fstream>
+#include <iostream>
+
+std::string __read_single_shader(const fs::path& fpath) {
+  std::string src;
+  std::ifstream fin(fpath, std::ios::in);
+
   while (!fin.eof()) {
     std::string t;
     std::getline(fin, t);
@@ -13,9 +17,11 @@ std::string jammygl::ReadShaderSource(const fs::path& path) {
   return src;
 }
 
-std::vector<std::string> jammygl::ParseShaderSource(const fs::path& path) {
+std::vector<std::string> __parse_vertex_and_fragment_shaders(const fs::path& fpath) {
+  enum class Shader_t { Null = -1, Vertex = 0, Fragment = 1 };
+
   std::vector<std::string> src_v(2);
-  std::ifstream fin(path, std::ios::in);
+  std::ifstream fin(fpath, std::ios::in);
 
   Shader_t curr_type = Shader_t::Null;
   std::string t, s;
@@ -46,17 +52,7 @@ std::vector<std::string> jammygl::ParseShaderSource(const fs::path& path) {
   return src_v;
 }
 
-void jammygl::WriteShaderSource(const std::string& source) {
-  std::cout << source;
+void __print_vertex_and_fragment_shaders(const std::vector<std::string>& src_v) {
+  std::printf("## Vertex shader Begin ##\n%s## Vertex shader End ##\n\n", src_v.at(0).c_str());
+  std::printf("## Fragment shader Begin ##\n%s## Fragment shader End ##\n", src_v.at(1).c_str());
 }
-
-void jammygl::WriteShaderSource(const std::vector<std::string>& source_v) {
-  std::cout << "## Vertex shader Begin ##" << std::endl;
-  jammygl::WriteShaderSource(source_v.at(0));
-  std::cout << "## Vertex shader End ##" << std::endl << std::endl;
-
-  std::cout << "## Fragment shader Begin ##" << std::endl;
-  jammygl::WriteShaderSource(source_v.at(1));
-  std::cout << "## Fragment shader End ##" << std::endl;
-}
-
