@@ -1,5 +1,5 @@
 #include "shader.h"
-#include "renderer.h"
+#include "gl_helper.h"
 
 #include <fstream>
 #include <iostream>
@@ -12,13 +12,13 @@ void _WriteShaderSource(const std::vector<std::string>& src_v) {
 enum class Shader_t { Null = -1, Vertex = 0, Fragment = 1 };
 
 Shader::Shader(const fs::path& filepath)
-    : m_FilePath(filepath), m_RendererId(0), m_ShaderSource(std::vector<std::string>(2)) {
+    : m_FilePath(filepath), m_Id(0), m_ShaderSource(std::vector<std::string>(2)) {
   ParseShaderSource();
   CreateShader();
 }
 
 Shader::~Shader() {
-  GlCall(glDeleteProgram(this->m_RendererId));
+  GlCall(glDeleteProgram(this->m_Id));
 }
 
 void Shader::ParseShaderSource() {
@@ -54,7 +54,7 @@ void Shader::ParseShaderSource() {
 }
 
 void Shader::CreateShader() {
-  unsigned int& program = this->m_RendererId;
+  unsigned int& program = this->m_Id;
   program = glCreateProgram();
   unsigned int vs = CompileShader(GL_VERTEX_SHADER, m_ShaderSource[(int)Shader_t::Vertex]);
   unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, m_ShaderSource[(int)Shader_t::Fragment]);
@@ -80,7 +80,8 @@ unsigned int Shader::CompileShader(unsigned int shader_t, const std::string& sou
   if (result == GL_FALSE) {
     int length;
     glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-    char* message = (char*)alloca(sizeof(length)); // alloca() uses to allocate dynamic space on stack heap.
+    // alloca() uses to allocate dynamic space on stack heap.
+    char* message = (char*)alloca(sizeof(length));
     glGetShaderInfoLog(id, length, &length, message);
     std::cerr << "[GLSL Error] Failed to compile shader! Error occurred at "
               << (shader_t == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader" << std::endl;
@@ -95,7 +96,7 @@ int Shader::GetUniformLocation(const std::string& u_Var) {
   if (m_UniformLocaltionCache.find(u_Var) != m_UniformLocaltionCache.end()) {
     return m_UniformLocaltionCache[u_Var];
   }
-  GlCall(GLint location = glGetUniformLocation(m_RendererId, u_Var.c_str()));
+  GlCall(GLint location = glGetUniformLocation(m_Id, u_Var.c_str()));
   if (location == -1) {
     std::cerr << "[GLSL Warning] Uniform " << u_Var << " doesn\'t exist! " << __FILE__ << ':'
               << __LINE__ << std::endl;
@@ -105,7 +106,7 @@ int Shader::GetUniformLocation(const std::string& u_Var) {
 }
 
 void Shader::Bind() const {
-  GlCall(glUseProgram(this->m_RendererId));
+  GlCall(glUseProgram(this->m_Id));
 }
 
 void Shader::Unbind() const {
@@ -113,6 +114,9 @@ void Shader::Unbind() const {
 }
 
 void Shader::SetUniform4f(const std::string& u_Var, float v0, float v1, float v2, float v3) {
-  unsigned int location = GetUniformLocation(u_Var.c_str());
-  GlCall(glUniform4f(location, v0, v1, v2, v3));
+  GlCall(glUniform4f(GetUniformLocation(u_Var.c_str()), v0, v1, v2, v3));
+}
+
+void Shader::SetUniform1i(const std::string& u_Var, int v0) {
+  GlCall(glUniform1i(GetUniformLocation(u_Var.c_str()), v0));
 }

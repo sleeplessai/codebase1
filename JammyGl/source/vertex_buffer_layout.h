@@ -2,7 +2,7 @@
 
 #include <glad/glad.h>
 #include <vector>
-#include "renderer.h"
+#include "gl_helper.h"
 
 struct VertexBufferElement {
   unsigned int type;
@@ -21,7 +21,7 @@ struct VertexBufferElement {
       case (GL_UNSIGNED_BYTE):
         return 1;
     }
-    MsvcAssert(false);
+    GlAssert(false);
     return 0;
   }
 };

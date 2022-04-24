@@ -5,15 +5,15 @@
 
 #include "deprecated_utils.h"
 
-#define MsvcAssert(x) \
-  if (!(x))           \
+#define GlAssert(x) \
+  if (!(x))         \
     __debugbreak();
 
-#define GlCall(x)                                    \
-  {                                                  \
-    ClearGlError();                                  \
-    x;                                               \
-    MsvcAssert(CheckGlError(#x, __FILE__, __LINE__)) \
+#define GlCall(x)                                  \
+  {                                                \
+    ClearGlError();                                \
+    x;                                             \
+    GlAssert(CheckGlError(#x, __FILE__, __LINE__)) \
   }
 
 static void ClearGlError() {

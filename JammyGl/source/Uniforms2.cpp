@@ -55,9 +55,9 @@ int main() {
     vao.AddBuffer(vbo, layout);
     IndexBuffer ibo(indices, 6);
     Shader shader(fs::path("../../shader/uniforms0.shader"));
-    float r = 0.0f, delta = 0.01f;
-
     Renderer renderer;
+
+    float r = 0.0f, delta = 0.01f;
 
     while (!glfwWindowShouldClose(window)) {
       /* Render here */

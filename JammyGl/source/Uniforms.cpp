@@ -6,15 +6,15 @@
 
 #include "deprecated_utils.h"
 
-#define MsvcAssert(x) \
-  if (!(x))           \
+#define GlAssert(x) \
+  if (!(x))         \
     __debugbreak();
 
-#define GlCall(x)                                    \
-  {                                                  \
-    ClearGlError();                                  \
-    x;                                               \
-    MsvcAssert(CheckGlError(#x, __FILE__, __LINE__)) \
+#define GlCall(x)                                  \
+  {                                                \
+    ClearGlError();                                \
+    x;                                             \
+    GlAssert(CheckGlError(#x, __FILE__, __LINE__)) \
   }
 
 static void ClearGlError() {
@@ -133,7 +133,7 @@ int main() {
   // GlCall(glUseProgram(shader));
 
   int32_t location = glGetUniformLocation(shader, "u_Color");
-  MsvcAssert(location != -1);
+  GlAssert(location != -1);
   // GlCall(glUniform4f(location, 0.0f, 0.f, 0.3f, 1.0f));
 
   // GlCall(glBindVertexArray(0));
