@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <glm/glm.hpp>
+
 namespace fs = std::filesystem;
 
 class Shader {
@@ -28,4 +30,5 @@ class Shader {
 
   void SetUniform4f(const std::string& u_Var, float v0, float v1, float v2, float v3);
   void SetUniform1i(const std::string& u_Var, int v0);
+  void SetUniformMat4f(const std::string& u_Var, const glm::mat4& matrix);
 };

@@ -2,6 +2,8 @@
 #include <glad/glad.h>
 #endif
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 //#define _USE_MATH_DEFINES
 #include <cmath>
@@ -30,9 +32,9 @@ void compute_pentagon_vertex_pos(float* pos, float x0 = 1.0f, float y0 = 0.0f) {
     pos[i] = R * std::cos(theta);
     pos[i + 1] = R * std::sin(theta);
     theta += delta;
-    pos[i + 2] = pos[i + 3] = 0.0f;     // texture vertex
+    pos[i + 2] = pos[i + 3] = 0.0f; // texture vertex
   }
-  //pos[10] = pos[14] = pos[15] = pos[19] = 1.0f;
+  // pos[10] = pos[14] = pos[15] = pos[19] = 1.0f;
 }
 
 int main() {
@@ -44,7 +46,7 @@ int main() {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  GLFWwindow* window = glfwCreateWindow(640, 640, "Pentagon", nullptr, nullptr);
+  GLFWwindow* window = glfwCreateWindow(800, 450, "Pentagon", nullptr, nullptr);
 
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
@@ -61,9 +63,14 @@ int main() {
     compute_pentagon_vertex_pos(vbo_data, -0.5f, 0.4f);
     unsigned int ibo_data[9] = {0, 1, 2, 0, 2, 3, 0, 3, 4};
 
-    //GlCall(glEnable(GL_BLEND));
-    //GlCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-    GlCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE));
+    int _width, _height;
+    glfwGetWindowSize(window, &_width, &_height);
+    float aspect_ratio = (float)_width / _height;
+
+    glm::mat4 proj = glm::ortho(-1.f * aspect_ratio, 1.f * aspect_ratio, -1.0f, 1.0f, -1.0f, 1.0f);
+
+    // GlCall(glEnable(GL_BLEND));
+    // GlCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
     VertexBuffer vbo(vbo_data, vbo_size);
     static VertexArray vao;
@@ -72,8 +79,9 @@ int main() {
     layout.Push<float>(2);
     vao.AddBuffer(vbo, layout);
     IndexBuffer ibo(ibo_data, 9);
-    Shader shader{"../../shader/uniforms0.shader"};
+    Shader shader{"../../shader/mvp.shader"};
     shader.Bind();
+    shader.SetUniformMat4f("u_MVP", proj);
     // Texture texture{"../../texture/2018063.jfif"};
     // texture.Bind();
     // shader.SetUniform1i("u_Texture", 0);
@@ -85,6 +93,7 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
       renderer.Clear();
       renderer.Draw(vao, ibo, shader);
+      shader.SetUniformMat4f("u_MVP", proj);
       shader.SetUniform4f("u_Color", r_co, r_co + 0.3f, r_co + 0.3f, 1.0f);
       if (r_co >= 1.0f) {
         delta = -0.01f;

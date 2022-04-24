@@ -32,7 +32,7 @@ add_library(jammygl_va OBJECT "vertex_array.h" "vertex_array.cpp" "gl_helper.h")
 target_link_libraries(jammygl_va PRIVATE glad::glad)
 
 add_library(jammygl_shader OBJECT "shader.h" "shader.cpp" "gl_helper.h")
-target_link_libraries(jammygl_shader PRIVATE glad::glad)
+target_link_libraries(jammygl_shader PRIVATE glad::glad glm::glm)
 
 add_library(jammygl_renderer STATIC "renderer.h" "renderer.cpp" "gl_helper.h")
 target_link_libraries(jammygl_renderer PRIVATE glad::glad)
@@ -48,5 +48,5 @@ target_include_directories(jammygl_texture PRIVATE ${STB_INCLUDE_DIRS})
 target_link_libraries(jammygl_texture PRIVATE jammygl_renderer)
 
 add_executable(Pentagon "Pentagon.cpp" "gl_helper.h")
-target_link_libraries(Pentagon PRIVATE glad::glad glfw)
+target_link_libraries(Pentagon PRIVATE glad::glad glfw glm::glm)
 target_link_libraries(Pentagon PRIVATE jammygl_texture jammygl_renderer jammygl_vb)

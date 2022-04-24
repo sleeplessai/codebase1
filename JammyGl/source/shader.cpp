@@ -1,5 +1,6 @@
 #include "shader.h"
 #include "gl_helper.h"
+#include "shader.h"
 
 #include <fstream>
 #include <iostream>
@@ -119,4 +120,8 @@ void Shader::SetUniform4f(const std::string& u_Var, float v0, float v1, float v2
 
 void Shader::SetUniform1i(const std::string& u_Var, int v0) {
   GlCall(glUniform1i(GetUniformLocation(u_Var.c_str()), v0));
+}
+
+void Shader::SetUniformMat4f(const std::string& u_Var, const glm::mat4& matrix) {
+  GlCall(glUniformMatrix4fv(GetUniformLocation(u_Var), 1, GL_FALSE, &matrix[0][0]));
 }
