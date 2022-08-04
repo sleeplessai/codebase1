@@ -18,15 +18,12 @@ file (GLOB cpp_source_collection "src/*.cpp")
 add_library(Glad src/glad.c)
 set(link_libs ${link_libs} Glad)
 
-add_executable(window src/window.cpp)
-add_executable(triangle src/triangle.cpp)
-
-target_link_libraries(window ${link_libs})
-target_link_libraries(triangle ${link_libs})
+foreach(cpp_source ${cpp_source_collection})
+    set(target ${cpp_source})
+    string(REGEX REPLACE ".+/(.+)\\..*" "\\1" target ${target})
+    add_executable(${target} ${cpp_source})
+    target_link_libraries(${target} ${link_libs})
+endforeach()
 
 file(GLOB shader_collection "glsl/*.fs" "glsl/*.vs" "glsl/*.gs" "glsl/*.cs")
 file(COPY ${shader_collection} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/glsl/)
-
-#foreach(cpp_src IN LISTS cpp_source_collection)
-#    message("${cpp_src}")
-#endforeach()
