@@ -8,17 +8,25 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 find_package(OpenGL REQUIRED)
+set(link_libs ${link_libs} OpenGL)
+
 find_package(glfw3 REQUIRED)
+set(link_libs ${link_libs} glfw)
 
-set(gl-cxx
-    src/window.cpp
-    src/triangle.cpp
-)
+file (GLOB cpp_source_collection "src/*.cpp")
 
-add_library(glad src/glad.c)
+add_library(Glad src/glad.c)
+set(link_libs ${link_libs} Glad)
+
 add_executable(window src/window.cpp)
 add_executable(triangle src/triangle.cpp)
 
-target_link_libraries(window glfw OpenGL glad)
-target_link_libraries(triangle glfw OpenGL glad)
+target_link_libraries(window ${link_libs})
+target_link_libraries(triangle ${link_libs})
 
+file(GLOB shader_collection "glsl/*.fs" "glsl/*.vs" "glsl/*.gs" "glsl/*.cs")
+file(COPY ${shader_collection} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/glsl/)
+
+#foreach(cpp_src IN LISTS cpp_source_collection)
+#    message("${cpp_src}")
+#endforeach()
