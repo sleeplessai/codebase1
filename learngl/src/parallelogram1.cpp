@@ -59,6 +59,8 @@ int main() {
     // shader
     Shader shader("build/glsl/triangle.vs", "build/glsl/triangle.fs");
 
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
 
