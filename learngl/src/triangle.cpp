@@ -15,7 +15,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow *window = glfwCreateWindow(800, 600, "GL Main", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(800, 600, "Triangle", nullptr, nullptr);
 
     if (window == nullptr) {
         std::cout << "Failed to create GLFW window\n";
@@ -40,7 +40,7 @@ int main() {
     unsigned int vbo;
     glGenBuffers(1, &vbo); //  &vbo can be array to gen multiple buffers
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);   // use learnopengl shader_s class
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // vao
     unsigned int vao;

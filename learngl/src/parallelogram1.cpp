@@ -15,7 +15,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow *window = glfwCreateWindow(800, 600, "Triangle1", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(800, 600, "Parallelogram1", nullptr, nullptr);
 
     if (window == nullptr) {
         std::cout << "Failed to create GLFW window\n";
@@ -30,24 +30,34 @@ int main() {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     /* Render */
-    // triangle data on cpu
+    // rectangle data on cpu
     float vertices[] = {
+        -0.2f,  0.5f, 0.0f,
+         0.5f,  0.5f, 0.0f,
         -0.5f, -0.5f, 0.0f,
-         0.5f, -0.5f, 0.0f,
-         0.0f,  0.5f, 0.0f
+         0.2f, -0.5f, 0.0f,
     };
-    unsigned int vbo, vao;
-    glGenBuffers(1, &vbo);
-    glGenVertexArrays(1, &vao);     // init and gen
+    unsigned int indices[] = {0, 1, 2, 1, 2, 3};
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    // vbo, ebo(ibo)
+    unsigned int vbo, ebo;
+    glGenBuffers(1, &vbo); //  &vbo can be array to gen multiple buffers
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);             // vbo buffering
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindVertexArray(vao);     // bind VAO before vertex_attrib_ptr (vertex buffering data layout)
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, static_cast<void*>(0));
+    glGenBuffers(1, &ebo); //  ebo for vertex data indices
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);     // ebo buffering
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    // vao
+    unsigned int vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao); // bind once
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), static_cast<void*>(0));
+    // location, vertex_abbr_value_num(vec3), dtype, norm_to_0-1, offset
     glEnableVertexAttribArray(1);
 
+    // shader
     Shader shader("build/glsl/triangle.vs", "build/glsl/triangle.fs");
-    // compile glsl program wherever VBO and VAO define
 
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
@@ -55,9 +65,10 @@ int main() {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glBindVertexArray(vao);
         shader.use();
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
