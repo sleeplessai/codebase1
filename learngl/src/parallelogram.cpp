@@ -30,7 +30,7 @@ int main() {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     /* Render */
-    // rectangle data on cpu
+    // data on cpu
     float vertices[] = {
         -0.288675f,  0.5f, 0.0f,
          0.5f,       0.5f, 0.0f,
@@ -43,7 +43,7 @@ int main() {
     unsigned int vbo;
     glGenBuffers(1, &vbo); //  &vbo can be array to gen multiple buffers
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);   // use learnopengl shader_s class
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // vao
     unsigned int vao;

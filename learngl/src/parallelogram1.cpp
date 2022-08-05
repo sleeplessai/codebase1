@@ -30,7 +30,7 @@ int main() {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     /* Render */
-    // rectangle data on cpu
+    // data on cpu
     float vertices[] = {
         -0.2f,  0.5f, 0.0f,
          0.5f,  0.5f, 0.0f,
