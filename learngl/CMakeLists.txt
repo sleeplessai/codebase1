@@ -13,8 +13,11 @@ set(link_libs ${link_libs} OpenGL)
 find_package(glfw3 REQUIRED)
 set(link_libs ${link_libs} glfw)
 
-add_library(Glad src/glad.c)
+add_library(Glad lib/glad.c)
 set(link_libs ${link_libs} Glad)
+
+add_library(StbImage lib/stb_image.c)
+set(link_libs ${link_libs} StbImage)
 
 file(GLOB cpp_source_collection "src/*.cpp")
 foreach(cpp_source ${cpp_source_collection})
