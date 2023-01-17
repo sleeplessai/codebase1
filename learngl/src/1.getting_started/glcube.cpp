@@ -81,7 +81,7 @@ int main() {
     } // use gl*Api after glad init
     const unsigned char* gl_version = glGetString(GL_VERSION);
     const unsigned char* gl_render = glGetString(GL_RENDERER);
-    std::printf("opengl_device: %\nopengl_version: %s\n", gl_render, gl_version);
+    std::printf("opengl_device: %s\nopengl_version: %s\n", gl_render, gl_version);
 
     unsigned int texture;
     glGenTextures(1, &texture);

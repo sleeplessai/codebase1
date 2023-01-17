@@ -15,7 +15,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow *window = glfwCreateWindow(800, 600, "Triangle", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(800, 600, "Parallelogram", nullptr, nullptr);
 
     if (window == nullptr) {
         std::cout << "Failed to create GLFW window\n";
@@ -30,11 +30,14 @@ int main() {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     /* Render */
-    // triangle data on cpu
+    // data on cpu
     float vertices[] = {
-        -0.5f, -0.5f, 0.0f,
-         0.5f, -0.5f, 0.0f,
-         0.0f,  0.5f, 0.0f
+        -0.288675f,  0.5f, 0.0f,
+         0.5f,       0.5f, 0.0f,
+        -0.5f,      -0.5f, 0.0f,
+        -0.5f,      -0.5f, 0.0f,
+         0.5f,       0.5f, 0.0f,
+         0.288675f, -0.5f, 0.0f,
     };
     // vbo
     unsigned int vbo;
@@ -51,7 +54,7 @@ int main() {
     glEnableVertexAttribArray(1);
 
     // shader
-    Shader shader("build/glsl/triangle.vs", "build/glsl/triangle.fs");
+    Shader shader("glsl/triangle.vs", "glsl/triangle.fs");
 
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
@@ -61,7 +64,7 @@ int main() {
 
         glBindVertexArray(vao);
         shader.use();
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

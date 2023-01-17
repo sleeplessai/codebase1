@@ -57,7 +57,7 @@ int main() {
     glEnableVertexAttribArray(1);
 
     // shader
-    Shader shader("build/glsl/triangle.vs", "build/glsl/triangle.fs");
+    Shader shader("glsl/triangle.vs", "glsl/triangle.fs");
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 

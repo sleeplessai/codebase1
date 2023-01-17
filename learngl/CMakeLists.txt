@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(learnglcn)
-
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+project(learnglcn)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
@@ -19,13 +20,32 @@ set(link_libs ${link_libs} Glad)
 add_library(StbImage lib/stb_image.c)
 set(link_libs ${link_libs} StbImage)
 
-file(GLOB cpp_source_collection "src/*.cpp")
-foreach(cpp_source ${cpp_source_collection})
-    set(target ${cpp_source})
-    string(REGEX REPLACE ".+/(.+)\\..*" "\\1" target ${target})
-    add_executable(${target} ${cpp_source})
-    target_link_libraries(${target} ${link_libs})
+file(GLOB source_glob "src/*")
+set(chapter_collection "")
+foreach(item ${source_glob})
+    if(IS_DIRECTORY ${item})
+        list(APPEND chapter_collection ${item})
+        # message(${item})
+    endif()
 endforeach()
 
-file(GLOB shader_collection "glsl/*.fs" "glsl/*.vs" "glsl/*.gs" "glsl/*.cs")
-file(COPY ${shader_collection} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/glsl/)
+# list(LENGTH chapter_collection n_chapters)
+# message(${n_chapters})
+
+foreach(chapter ${chapter_collection})
+    file(GLOB cpp_source_collection "${chapter}/*.cpp")
+    foreach(cpp_source ${cpp_source_collection})
+        # compile binaries
+        get_filename_component(target_dir ${chapter} NAME)
+        get_filename_component(target ${cpp_source} NAME_WLE)
+        add_executable(${target} ${cpp_source})
+        target_link_libraries(${target} ${link_libs})
+        set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${target_dir}")
+
+        # copy shaders and assets
+        file(GLOB shader_collection "${chapter}/glsl/*.fs" "${chapter}/glsl/*.vs" "${chapter}/glsl/*.gs" "${chapter}/glsl/*.cs")
+        file(COPY ${shader_collection} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${target_dir}/glsl/)
+        file(GLOB_RECURSE assets_collection "${chapter}/assets/*")
+        file(COPY ${assets_collection} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${target_dir}/assets/)
+    endforeach()
+endforeach()
