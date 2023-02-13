@@ -1,13 +1,11 @@
 #pragma once
 
-#include "shader_s.h"
 #include <glad/glad.h>
 
 #include <string>
 #include <fstream>
 #include <sstream>
 #include <iostream>
-#include <wchar.h>
 
 
 namespace kit {
