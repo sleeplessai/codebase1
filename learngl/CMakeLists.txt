@@ -22,6 +22,9 @@ set(link_libs ${link_libs} Glad)
 add_library(StbImage lib/stb_image.c)
 set(link_libs ${link_libs} StbImage)
 
+find_package(fmt REQUIRED)
+set(link_libs ${link_libs} fmt)
+
 file(GLOB source_glob "src/*")
 set(chapter_collection "")
 foreach(item ${source_glob})
