@@ -2,9 +2,9 @@
 
 out vec4 outColor;
 
-uniform vec4 uLightColor;
-uniform vec4 uObjectColor;
+uniform vec3 uLightColor;
+uniform vec3 uObjectColor;
 
 void main() {
-    outColor = uLightColor * uObjectColor;
+    outColor = vec4(uLightColor * uObjectColor, 1.0f);
 }

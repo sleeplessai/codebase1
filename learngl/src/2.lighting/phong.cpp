@@ -6,6 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <vector>
+#include <string_view>
 
 #include "stb_image.h"
 #include "fmt/core.h"
@@ -21,7 +22,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 static struct WindowInfo {
     int width {800};
     int height {500};
-    const char* title {"Ch.2 Color"};
+    const char* title {"Ch.2 Phong lighting"};
     float aspect {1.6f};  // 800/500
 
     void update(GLFWwindow *window) noexcept {
@@ -45,17 +46,19 @@ int main() {
         std::cerr << "Failed to initialize GLAD\n";
         return -1;
     } // use gl*Api after glad init
-    std::string gl_version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
-    std::string gl_render = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+    std::string_view gl_version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+    std::string_view gl_render = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
     fmt::print("opengl_device: {}\nopengl_version: {}\n", gl_render, gl_version);
 
     std::vector<float> vertices = {
-#include "assets/cube.inc"
+#include "assets/cube_normal.inc"
     };
     glm::vec3 cube_pos {0.0f, 0.0f, 0.0f};
-    glm::vec3 light_pos {2.0f, 0.0f, 0.0f};
+    glm::vec3 light_pos {2.0f, 1.0f, 1.5f};
     glm::vec3 cube_color {1.0f, 0.5f, 0.31f};
     glm::vec3 light_color {1.0f, 1.0f, 1.0f};
+
+    light_pos = {0.0f, 1.1f, -1.5f};
 
     unsigned int vbo;
     glGenBuffers(1, &vbo);
@@ -66,23 +69,26 @@ int main() {
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, reinterpret_cast<void*>(0));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float)*6, reinterpret_cast<void*>(0));
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float)*6, reinterpret_cast<void*>(sizeof(float)*3));
+    glEnableVertexAttribArray(1);
 
     unsigned int vao_light;
     glGenVertexArrays(1, &vao_light);
     glBindVertexArray(vao_light);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, reinterpret_cast<void*>(0));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, reinterpret_cast<void*>(0));
     glEnableVertexAttribArray(0);
 
-    kit::Shader shader {"glsl/cube.vs", "glsl/cube.fs"};
+    kit::Shader cube {"glsl/cube.vs", "glsl/cube.fs"};
+    kit::Shader phong {"glsl/phong.vs", "glsl/phong.fs"};
 
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
 
     // free look camera singleton instance
-    kit::FreeLookCamera& cam = kit::FreeLookCamera::get_instance();
+    kit::CamInst& cam = kit::CamInst::get_instance();
     cam.last_mouse_pos = glm::vec2(wnd_info.width / 2.f, wnd_info.height / 2.f);
     cam.position = {1.1f, 0.36f, 5.2f};
     cam.front = {0.0f, 0.0f, -1.0f};
@@ -100,39 +106,54 @@ int main() {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        shader.use();
         glm::mat4 model {1.0f};
         glm::mat4 view {1.0f};
         glm::mat4 projection {1.0f};
 
         view = glm::lookAt(cam.position, cam.position + cam.front, cam.up);
 
-        unsigned int uObjectColor = glGetUniformLocation(shader.ID, "uObjectColor");
-        unsigned int uLightColor = glGetUniformLocation(shader.ID, "uLightColor");
+        // cubric object placement
+        phong.use();
+        unsigned int uObjectColorLoc = glGetUniformLocation(phong.ID, "uObjectColor");
+        unsigned int uLightColorLoc = glGetUniformLocation(phong.ID, "uLightColor");
+        unsigned int uLightPosLoc = glGetUniformLocation(phong.ID, "uLightPos");
+        unsigned int uViewPosLoc = glGetUniformLocation(phong.ID, "uViewPos");
 
-        glUniform3fv(uObjectColor, 1, glm::value_ptr(cube_color));
-        glUniform3fv(uLightColor, 1, glm::value_ptr(light_color));
+        glUniform3fv(uObjectColorLoc, 1, glm::value_ptr(cube_color));
+        glUniform3fv(uLightColorLoc, 1, glm::value_ptr(light_color));
+        glUniform3fv(uLightPosLoc, 1, glm::value_ptr(light_pos));
+        glUniform3fv(uViewPosLoc, 1, glm::value_ptr(cam.position));
 
-        // object placement
         glBindVertexArray(vao);
         model = glm::translate(model, cube_pos);
+        model = glm::rotate(model, glm::radians(-25.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         projection = glm::perspective(glm::radians(cam.fovy), wnd_info.aspect, 0.1f, 100.0f);
 
-        unsigned int uMvp = glGetUniformLocation(shader.ID, "uMvp");
-        glm::mat4 mvp_mat4 = projection * view * model;
-        glUniformMatrix4fv(uMvp, 1, GL_FALSE, glm::value_ptr(mvp_mat4));
+        unsigned int uModelLoc = glGetUniformLocation(phong.ID, "uModel");
+        unsigned int uViewLoc = glGetUniformLocation(phong.ID, "uView");
+        unsigned int uProjectionLoc = glGetUniformLocation(phong.ID, "uProjection");
+
+        glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(uViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(uProjectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        // light source
+        // light source placement
+        cube.use();
         model = glm::mat4(1.0f);
         model = glm::translate(model, light_pos);
         model = glm::scale(model, glm::vec3(0.2f));
         projection = glm::perspective(glm::radians(cam.fovy), wnd_info.aspect, 0.1f, 100.0f);
 
-        mvp_mat4 = projection * view * model;
-        glUniformMatrix4fv(uMvp, 1, GL_FALSE, glm::value_ptr(mvp_mat4));
-        glUniform3fv(uObjectColor, 1, glm::value_ptr(glm::vec3(1.0f)));
+        unsigned int uMvpLoc = glGetUniformLocation(cube.ID, "uMvp");
+        uObjectColorLoc = glGetUniformLocation(cube.ID, "uObjectColor");
+        uLightColorLoc = glGetUniformLocation(cube.ID, "uLightColor");
+
+        glm::mat4 mvp_mat4 = projection * view * model;
+        glUniformMatrix4fv(uMvpLoc, 1, GL_FALSE, glm::value_ptr(mvp_mat4));
+        glUniform3fv(uLightColorLoc, 1, glm::value_ptr(light_color));
+        glUniform3fv(uObjectColorLoc, 1, glm::value_ptr(glm::vec3(1.0f)));
 
         glBindVertexArray(vao_light);
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -148,7 +169,7 @@ void process_input(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    auto& cam = kit::FreeLookCamera::get_instance();
+    auto& cam = kit::CamInst::get_instance();
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cam.position += cam.speed * cam.front;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -179,7 +200,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-    auto& cam = kit::FreeLookCamera::get_instance();
+    auto& cam = kit::CamInst::get_instance();
 
     if (cam.fovy >= 1.0f && cam.fovy <= 100.0f)
         cam.fovy -= static_cast<float>(yoffset * 5.0f);

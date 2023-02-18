@@ -54,6 +54,6 @@ private:
     }
 };
 
-using AdqewsCamera = FreeLookCamera;
+using CamInst = FreeLookCamera;
 
 }
