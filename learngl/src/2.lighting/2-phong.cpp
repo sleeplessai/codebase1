@@ -81,8 +81,8 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, reinterpret_cast<void*>(0));
     glEnableVertexAttribArray(0);
 
-    kit::Shader cube {"glsl/cube.vs", "glsl/cube.fs"};
-    kit::Shader phong {"glsl/phong.vs", "glsl/phong.fs"};
+    kit::Shader cube {"glsl/1-cube.vs", "glsl/1-cube.fs"};
+    kit::Shader phong {"glsl/2-phong.vs", "glsl/2-phong.fs"};
 
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
@@ -91,6 +91,7 @@ int main() {
     kit::CamInst& cam = kit::CamInst::get_instance();
     cam.last_mouse_pos = glm::vec2(wnd_info.width / 2.f, wnd_info.height / 2.f);
     cam.position = {1.1f, 0.36f, 5.2f};
+    cam.position = {.25f, 1.51f, 5.12f};
     cam.front = {0.0f, 0.0f, -1.0f};
     cam.target = cube_pos;
     cam.update();

@@ -10,8 +10,10 @@ project(learnglcn)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-find_package(OpenGL REQUIRED)
-set(link_libs ${link_libs} OpenGL)
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    find_package(OpenGL REQUIRED)
+    set(link_libs ${link_libs} OpenGL)
+endif()
 
 find_package(glfw3 REQUIRED)
 set(link_libs ${link_libs} glfw)

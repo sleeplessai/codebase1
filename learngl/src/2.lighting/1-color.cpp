@@ -76,7 +76,7 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, reinterpret_cast<void*>(0));
     glEnableVertexAttribArray(0);
 
-    kit::Shader shader {"glsl/cube.vs", "glsl/cube.fs"};
+    kit::Shader shader {"glsl/1-cube.vs", "glsl/1-cube.fs"};
 
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
