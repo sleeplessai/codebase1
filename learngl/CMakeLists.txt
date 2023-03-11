@@ -50,7 +50,10 @@ foreach(chapter ${chapter_collection})
         set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${target_dir}")
 
         # copy shaders and assets
-        file(GLOB shader_collection "${chapter}/glsl/*.fs" "${chapter}/glsl/*.vs" "${chapter}/glsl/*.gs" "${chapter}/glsl/*.cs")
+        file(GLOB shader_collection
+            "${chapter}/glsl/*.fs" "${chapter}/glsl/*.vs" "${chapter}/glsl/*.gs" "${chapter}/glsl/*.cs"
+            "${chapter}/glsl/*.frag" "${chapter}/glsl/*.vert" "${chapter}/glsl/*.geom" "${chapter}/glsl/*.comp"
+        )
         file(COPY ${shader_collection} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${target_dir}/glsl/)
         file(GLOB_RECURSE assets_collection "${chapter}/assets/*")
         file(COPY ${assets_collection} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${target_dir}/assets/)
