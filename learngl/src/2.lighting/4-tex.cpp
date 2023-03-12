@@ -11,7 +11,7 @@
 #include "fmt/core.h"
 
 #include "shader_m.h"
-#include "kit/free_look_camera.h"
+#include "kit/cam_inst.h"
 #include "kit/tex_proc.h"
 
 
@@ -205,27 +205,7 @@ void process_input(GLFWwindow *window) {
         glfwSetWindowShouldClose(window, true);
 
     auto& cam = kit::CamInst::get_instance();
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cam.position += cam.speed * cam.front;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cam.position -= cam.speed * cam.front;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cam.position -= glm::normalize(glm::cross(cam.front, cam.up)) * cam.speed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cam.position += glm::normalize(glm::cross(cam.front, cam.up)) * cam.speed;
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        cam.position -= cam.speed * cam.up;
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-        cam.position += cam.speed * cam.up;
-
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-        std::puts("\nCurrent camera parameters:");
-        std::printf("\tpositions: {%.2f, %.2f, %.2f}\n\tfront: {%.2f, %.2f, %.2f}\n\ttarget{%.2f, %.2f, %.2f}\n\n", \
-                    cam.position[0], cam.position[1], cam.position[2], \
-                    cam.front[0], cam.front[1], cam.front[2], \
-                    cam.target[0], cam.target[1], cam.target[2]);
-
-    }
+    cam.process(window);
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {

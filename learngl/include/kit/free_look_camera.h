@@ -1,19 +1,22 @@
 #pragma once
 
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <fmt/core.h>
 
 namespace kit {
 
-class FreeLookCamera {
+class CamInst {
 public:
-    FreeLookCamera(const FreeLookCamera&) = delete;
-    FreeLookCamera& operator=(const FreeLookCamera&) = delete;
+    CamInst(const CamInst&) = delete;
+    CamInst& operator=(const CamInst&) = delete;
 
-    static FreeLookCamera& get_instance() {
-        static FreeLookCamera cam_inst;
+    static CamInst& get_instance() {
+        static CamInst cam_inst;
         return cam_inst;
     }
 
@@ -44,16 +47,38 @@ public:
         auto& cam = get_instance();
         cam.speed = 10.0f * frame_time;
     }
+    void process(GLFWwindow* window) {
+        auto& cam = get_instance();
 
-    ~FreeLookCamera() {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            cam.position += cam.speed * cam.front;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            cam.position -= cam.speed * cam.front;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            cam.position -= glm::normalize(glm::cross(cam.front, cam.up)) * cam.speed;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            cam.position += glm::normalize(glm::cross(cam.front, cam.up)) * cam.speed;
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+            cam.position -= cam.speed * cam.up;
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+            cam.position += cam.speed * cam.up;
+
+        if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+            fmt::print("\nCurrent camera parameters:");
+            fmt::print("\tpositions: {},{},{}\n", cam.position[0], cam.position[1], cam.position[2]);
+            fmt::print("\tfront: {},{},{}\n", cam.front[0], cam.front[1], cam.front[2]);
+            fmt::print("\ttarget: {},{},{}\n", cam.target[0], cam.target[1], cam.target[2]);
+        }
+    }
+
+    ~CamInst() {
         //std::clog << "Camera instance destructed.\n";
     }
 
 private:
-    FreeLookCamera() {
-    }
+    CamInst() = default;
 };
 
-using CamInst = FreeLookCamera;
+using FreeLookCamera = CamInst; // alias
 
 }
