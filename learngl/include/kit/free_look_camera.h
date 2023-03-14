@@ -47,7 +47,7 @@ public:
         auto& cam = get_instance();
         cam.speed = 10.0f * frame_time;
     }
-    void process(GLFWwindow* window) {
+    void process_keypress(GLFWwindow* window) {
         auto& cam = get_instance();
 
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -69,6 +69,16 @@ public:
             fmt::print("\tfront: {},{},{}\n", cam.front[0], cam.front[1], cam.front[2]);
             fmt::print("\ttarget: {},{},{}\n", cam.target[0], cam.target[1], cam.target[2]);
         }
+    }
+    void process_scroll(float const yoffset) {
+        auto& cam = get_instance();
+
+        if (cam.fovy >= 1.0f && cam.fovy <= 100.0f)
+            cam.fovy -= yoffset * 5.0f;
+        if (cam.fovy <= 1.0f)
+            cam.fovy = 1.0f;
+        if (cam.fovy >= 100.0f)
+            cam.fovy = 100.0f;
     }
 
     ~CamInst() {

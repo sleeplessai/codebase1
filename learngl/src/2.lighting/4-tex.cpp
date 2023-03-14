@@ -205,7 +205,7 @@ void process_input(GLFWwindow *window) {
         glfwSetWindowShouldClose(window, true);
 
     auto& cam = kit::CamInst::get_instance();
-    cam.process(window);
+    cam.process_keypress(window);
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
@@ -216,12 +216,6 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     auto& cam = kit::CamInst::get_instance();
-
-    if (cam.fovy >= 1.0f && cam.fovy <= 100.0f)
-        cam.fovy -= static_cast<float>(yoffset * 5.0f);
-    if (cam.fovy <= 1.0f)
-        cam.fovy = 1.0f;
-    if (cam.fovy >= 100.0f)
-        cam.fovy = 100.0f;
+    cam.process_scroll(yoffset);
 }
 

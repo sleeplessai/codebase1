@@ -11,7 +11,7 @@
 
 namespace kit {
 
-unsigned int make_texture(const std::string& tex_image, bool error_exit = false) {
+inline unsigned int make_texture(const std::string& tex_image, bool error_exit = false) {
 
     int width{}, height{}, channels{};
     auto* tex_data = stbi_load(tex_image.c_str(), &width, &height, &channels, 0);
