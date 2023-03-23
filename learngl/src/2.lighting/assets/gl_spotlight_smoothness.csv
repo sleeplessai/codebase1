@@ -1,4 +1,5 @@
-Theta:float, ThetaInDegrees:float, InnerCutoff:float, InnerCutoffInDegrees:float, OuterCutoff:float, OuterCutoffInDegrees:float, Epsilon:float, Intensity:float
+Theta, ThetaInDegrees, InnerCutoff, InnerCutoffInDegrees, OuterCutoff, OuterCutoffInDegrees, Epsilon, Intensity
+float, float, float, float, float, float, float, float
 0.87, 30, 0.91, 25, 0.82, 35, 0.09, 0.56
 0.9, 26, 0.91, 25, 0.82, 35, 0.09, 0.89
 0.97, 14, 0.91, 25, 0.82, 35, 0.09, 1.67
