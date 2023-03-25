@@ -1,5 +1,3 @@
-#include <chrono>
-#include <cstdlib>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -9,32 +7,46 @@
 
 #include <limits>
 #include <random>
+#include <variant>
 #include <vector>
 #include <string_view>
 
 #include <fmt/core.h>
-#include <range/v3/view.hpp>
 
 #include "shader_m.h"
 #include "kit/cam_inst.h"
 #include "kit/tex_proc.h"
+#include "kit/csv_proc.h"
 
 
-void process_input(GLFWwindow *window);
-void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void process_input(GLFWwindow*);
+void framebuffer_size_callback(GLFWwindow*, int, int);
+void scroll_callback(GLFWwindow*, double, double);
 
 static struct WindowInfo {
-    int width {800};
-    int height {500};
-    const char* title {"Ch.2 Lighting maps"};
-    float aspect {1.6f};  // 800/500
+    int width {1600}, height {1000};
+    float aspect {1.6f};
+    const char* title {"Ch.2 Casters"};
 
     void update(GLFWwindow *window) noexcept {
         glfwGetWindowSize(window, &width, &height);
         aspect = static_cast<float>(width) / height;
     }
 } wnd_info;
+
+auto fetch_point_light_data(int index) {
+    kit::CsvDatabase db("assets/point_light_attenuation.csv", "point_light_attenuation");
+    db.open();
+    db.buffer();
+    db.show_meta();
+    if (index < 0) index = db.record.size() + index;
+    int range = std::get<int>(db.query(index,"Range").value);
+    glm::vec3 quad = std::get<glm::vec3>(db.query(index,"ConstantLinearQuadratic").value);
+    return std::tuple{range, quad};
+}
+
+//#define __Paralleling_light_rendering
+#define __Point_light_rendering
 
 int main() {
     glfwInit();
@@ -70,6 +82,8 @@ int main() {
     //light_pos = {4.0f, 0.5f, -2.0f};
     light_pos = {10.f, 0.f, 0.f};
 
+    auto [range, quadratic] = fetch_point_light_data(-7);
+
     struct Material {
         unsigned int diffuse, specular;
         float shininess;
@@ -77,32 +91,41 @@ int main() {
     struct Light {
         glm::vec3 ambient, diffuse, specular, direction;
     };
-    Material material {
+    struct PointLight {
+        glm::vec3 ambient, diffuse, specular, position, constant_linear_quadratic;
+    };
+    Material ml {
         .diffuse = kit::make_texture("assets/container2.png"),
         .specular = kit::make_texture("assets/container2_specular.png"),
         .shininess = 128.0f
     };
-    std::vector<Light> light_bag {
-        {
+    std::array<std::variant<Light, PointLight>, 3> lights = {
+        Light{
+            glm::vec3(1.f),
+            glm::vec3(1.f),
+            glm::vec3(1.f),
+            -light_pos,
+            },
+        Light{
             glm::vec3(0.3f),
             glm::vec3(0.5f),
             glm::vec3(1.0f),
-            glm::vec3(0.f) - light_pos
-        },
-        {
-            glm::vec3(1.f),
-            glm::vec3(1.f),
-            glm::vec3(1.f),
-            -light_pos
-        },
-        {
-            glm::vec3(0.3f),
+            glm::vec3(0.f, 0.f, 0.f) - light_pos,
+            },
+        PointLight{
             glm::vec3(0.5f),
+            glm::vec3(0.6f),
             glm::vec3(1.0f),
-            glm::vec3(0.f, 0.f, 0.f) - light_pos
-        },
+            glm::vec3(-6.4f,1.0f,0.0f),
+            quadratic
+            }
     };
-    constexpr std::size_t lidx = 2;
+
+#if defined (__Paralleling_light_rendering)
+    Light const& lt = std::get<Light>(lights.at(1));
+#elif defined (__Point_light_rendering)
+    PointLight const& lt = std::get<PointLight>(lights.at(2));
+#endif
 
     unsigned int vbo;
     glGenBuffers(1, &vbo);
@@ -127,14 +150,17 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float)*8, (void*)(0));
     glEnableVertexAttribArray(0);
 
-    Shader cube_shader {"glsl/1-cube.vs", "glsl/1-cube.fs"};
-    Shader material_shader {"glsl/4-tex.vert", "glsl/5-caster.frag"};
+    Shader cube_shader("glsl/1-cube.vs", "glsl/1-cube.fs");
 
-    // 纹理与sampler2D变量的关联是通过索引来关联的
-    // https://www.jianshu.com/p/484e05a2c816
-    material_shader.use();
-    material_shader.setInt("material.diffuse", 0);
-    material_shader.setInt("material.specular", 1);
+    Shader paralleling_shader("glsl/4-tex.vert", "glsl/5-caster_paralleling.frag");
+    paralleling_shader.use();
+    paralleling_shader.setInt("material.diffuse", 0);
+    paralleling_shader.setInt("material.specular", 1);
+
+    Shader point_shader("glsl/4-tex.vert", "glsl/5-caster_point.frag");
+    point_shader.use();
+    point_shader.setInt("material.diffuse", 0);
+    point_shader.setInt("material.specular", 1);
 
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
@@ -165,52 +191,90 @@ int main() {
 
         // activate texture slots
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, material.diffuse);
+        glBindTexture(GL_TEXTURE_2D, ml.diffuse);
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, material.specular);
+        glBindTexture(GL_TEXTURE_2D, ml.specular);
 
+#if defined(__Paralleling_light_rendering)
         // cubric material object placement
-        material_shader.use();
-        material_shader.setVec3("view_pos", cam.position);
+        paralleling_shader.use();
+        paralleling_shader.setVec3("view_pos", cam.position);
 
-        material_shader.setFloat("material.shininess", material.shininess);
-        material_shader.setVec3("light.ambient", light_bag.at(lidx).ambient);
+        paralleling_shader.setFloat("material.shininess", ml.shininess);
+        paralleling_shader.setVec3("light.ambient", lt.ambient);
+        paralleling_shader.setVec3("light.diffuse", lt.diffuse);
+        paralleling_shader.setVec3("light.specular", lt.specular);
+        paralleling_shader.setVec3("light.direction", lt.direction);
 
-        material_shader.setVec3("light.diffuse", light_bag.at(lidx).diffuse);
-        material_shader.setVec3("light.specular", light_bag.at(lidx).specular);
-        material_shader.setVec3("light.direction", light_bag.at(lidx).direction);
+        projection = glm::perspective(glm::radians(cam.fovy), wnd_info.aspect, 0.1f, 100.f);
 
-        projection = glm::perspective(glm::radians(cam.fovy), wnd_info.aspect, 0.1f, 100.0f);
-
-        material_shader.setMat4("projection", projection);
-        material_shader.setMat4("view", view);
+        paralleling_shader.setMat4("projection", projection);
+        paralleling_shader.setMat4("view", view);
 
         glm::mat4 model{};
         std::mt19937 g(320);
         constexpr auto y_axis = glm::vec3(0.0f, 1.0f, 0.0f);
         glBindVertexArray(vao_material);
 
-        for (auto& pos3 : ranges::take_view{cube_pos, (int)cube_pos.size() - 1}){
+        for (auto& pos3 : cube_pos) {
             model = glm::mat4(1.f);
             model = glm::translate(model, pos3);
-            // rand rotation
-            float rand_ro = 90.f * std::generate_canonical<float, std::numeric_limits<float>::digits10>(g);
-            // fmt::print("bits:{} real:{}\n", std::numeric_limits<float>::digits10, rand_ro);
-            model = glm::rotate(model, glm::radians(rand_ro), y_axis);
-            material_shader.setMat4("model", model);
-            // material_shader drawcall
+            if (pos3 == cube_pos.back()) {
+                model = glm::rotate(model, glm::radians(-28.0f), y_axis);
+            } else {
+                float rand_ro = 90.f * std::generate_canonical<float, std::numeric_limits<float>::digits10>(g);
+                // fmt::print("bits:{} real:{}\n", std::numeric_limits<float>::digits10, rand_ro);
+                model = glm::rotate(model, glm::radians(rand_ro), y_axis);
+            }
+            paralleling_shader.setMat4("model", model);
+            // paralleling_shader drawcall
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
-        model = glm::mat4(1.f);
-        model = glm::translate(model, *cube_pos.rbegin());
-        model = glm::rotate(model, glm::radians(-28.0f), y_axis);
-        material_shader.setMat4("model", model);
-        glDrawArrays(GL_TRIANGLES, 0, 36); // BAD: multi-draw call :(
+#elif defined(__Point_light_rendering)
+        // point-lighted material placement
+        point_shader.use();
+        point_shader.setVec3("view_pos", cam.position);
 
+        point_shader.setFloat("material.shininess", ml.shininess);
+        point_shader.setVec3("light.ambient", lt.ambient);
+        point_shader.setVec3("light.diffuse", lt.diffuse);
+        point_shader.setVec3("light.specular", lt.specular);
+        point_shader.setVec3("light.position", lt.position);
+        point_shader.setVec3("light.constant_linear_quadratic", lt.constant_linear_quadratic);
+        projection = glm::perspective(glm::radians(cam.fovy), wnd_info.aspect, 0.1f, 100.f);
+
+        point_shader.setMat4("projection", projection);
+        point_shader.setMat4("view", view);
+
+        glm::mat4 model{};
+        std::mt19937 g(324);
+        constexpr auto y_axis = glm::vec3(0.0f, 1.0f, 0.0f);
+        glBindVertexArray(vao_material);
+
+        for (auto& pos3 : cube_pos) {
+            model = glm::mat4(1.f);
+            model = glm::translate(model, pos3);
+            if (pos3 == cube_pos.back()) {
+                model = glm::rotate(model, glm::radians(-18.0f), y_axis);
+            } else {
+                float rand_ro = 90.f * std::generate_canonical<float, std::numeric_limits<float>::digits10>(g);
+                // fmt::print("bits:{} real:{}\n", std::numeric_limits<float>::digits10, rand_ro);
+                model = glm::rotate(model, glm::radians(rand_ro), y_axis);
+            }
+            point_shader.setMat4("model", model);
+            // paralleling_shader drawcall
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+
+#endif
         // cubric light source placement
         cube_shader.use();
         model = glm::mat4(1.0f);
+#if defined (__Paralleling_light_rendering)
         model = glm::translate(model, light_pos);
+#elif defined (__Point_light_rendering)
+        model = glm::translate(model, lt.position);
+#endif
         model = glm::scale(model, glm::vec3(0.2f));
         projection = glm::perspective(glm::radians(cam.fovy), wnd_info.aspect, 0.1f, 100.0f);
 
@@ -248,4 +312,5 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     auto& cam = kit::CamInst::get_instance();
     cam.process_scroll(yoffset);
 }
+
 

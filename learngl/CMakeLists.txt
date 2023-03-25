@@ -16,17 +16,14 @@ endif()
 find_package(glfw3 REQUIRED)
 set(link_libs ${link_libs} glfw)
 
+find_package(fmt REQUIRED)
+set(link_libs ${link_libs} fmt)
+
 add_library(Glad lib/glad.c)
 set(link_libs ${link_libs} Glad)
 
 add_library(StbImage lib/stb_image.c)
 set(link_libs ${link_libs} StbImage)
-
-find_package(fmt REQUIRED)
-set(link_libs ${link_libs} fmt)
-
-find_package(range-v3 REQUIRED)
-set(link_libs ${link_libs} range-v3::range-v3)
 
 file(GLOB source_glob "src/*")
 set(chapter_collection "")

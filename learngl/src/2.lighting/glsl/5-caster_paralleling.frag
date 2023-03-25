@@ -14,13 +14,11 @@ struct Material {
 };
 
 struct Light {
-    vec3 ambient, diffuse, specular;
-    vec3 direction;
+    vec3 ambient, diffuse, specular, direction;
 };
 
 uniform Material material;
 uniform Light light;
-
 
 void main() {
     vec3 ambient = light.ambient * vec3(texture(material.diffuse, TexCoords));

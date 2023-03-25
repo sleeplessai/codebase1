@@ -1,3 +1,5 @@
+#define __Deprecated_codes_
+
 #include <glm/glm.hpp>
 #include <string>
 #include <string_view>
