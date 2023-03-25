@@ -82,7 +82,7 @@ int main() {
     //light_pos = {4.0f, 0.5f, -2.0f};
     light_pos = {10.f, 0.f, 0.f};
 
-    auto [range, quadratic] = fetch_point_light_data(-7);
+    auto [range, quadratic] = fetch_point_light_data(6);
 
     struct Material {
         unsigned int diffuse, specular;

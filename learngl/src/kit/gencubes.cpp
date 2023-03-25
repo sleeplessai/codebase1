@@ -158,7 +158,7 @@ constexpr inline void cslarsen_mt19937_call(int const n) noexcept {
 #endif
 
 int main(const int, const char** argv) {
-    std_mt19937_call(std::atoi(argv[1]), glm::vec3{0.f}, 5.f);
+    std_mt19937_call(std::atoi(argv[1]), glm::vec3{0.f}, 10.f);
 #if defined (__mt19937_cslarsen_impl)
     cslarsen_mt19937_call();
 #endif
