@@ -5,22 +5,22 @@
 #include <string_view>
 
 
-namespace ui {
+namespace gii {
 
-struct MainUIWindowInfo {
+struct GiiWindowInfo {
     int width {800};
     int height {600};
     std::string title = "window";
 
-    MainUIWindowInfo& set_width(int width) {
+    GiiWindowInfo& set_width(int width) {
         this->width = width;
         return *this;
     }
-    MainUIWindowInfo& set_height(int height) {
+    GiiWindowInfo& set_height(int height) {
         this->height = height;
         return *this;
     }
-    MainUIWindowInfo& set_title(std::string_view title) {
+    GiiWindowInfo& set_title(std::string_view title) {
         this->title = title;
         return *this;
     }
@@ -32,27 +32,27 @@ struct GuiConfig {
     bool dark_mode {false};
 };
 
-class MainUI {
+class Gii {
 public:
-    MainUI(const MainUI&) = delete;
-    MainUI& operator=(const MainUI&) = delete;
+    Gii(const Gii&) = delete;
+    Gii& operator=(const Gii&) = delete;
 
-    static MainUI& get_instance() {
-        static MainUI main_ui;
+    static Gii& get_instance() {
+        static Gii main_ui;
         return main_ui;
     }
 
     void initilize();
     void present();
-    ~MainUI();
+    ~Gii();
 
     // members
     GLFWwindow* window {nullptr};
-    MainUIWindowInfo win_info {};
+    GiiWindowInfo win_info {};
     GuiConfig gui_conf {};
 
 private:
-    MainUI() = default;
+    Gii() = default;
     void update();
     void render();
     void terminate();

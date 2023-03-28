@@ -9,17 +9,17 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
-#include "ui.h"
+#include "gii.h"
 
 
-namespace ui {
+namespace gii {
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     glViewport(0, 0, width, height);
-    MainUI::get_instance().win_info.set_width(width).set_height(height);
+    Gii::get_instance().win_info.set_width(width).set_height(height);
 }
 
-void MainUI::initilize() {
+void Gii::initilize() {
     /* GLFW Init, GLAD Load */
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -74,7 +74,7 @@ void MainUI::initilize() {
     ImGui_ImplOpenGL3_Init(glsl_version);
 }
 
-void MainUI::present() {
+void Gii::present() {
     while (!glfwWindowShouldClose(this->window)) {
         glfwPollEvents();
         update();
@@ -83,17 +83,17 @@ void MainUI::present() {
     terminate();
 }
 
-void MainUI::update() {
+void Gii::update() {
 
 }
 
-void MainUI::set_glfw_callbacks() {
+void Gii::set_glfw_callbacks() {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     // glfwSetCursorPosCallback(window, mouse_callback);
     // glfwSetScrollCallback(window, scroll_callback);
 }
 
-void MainUI::render() {
+void Gii::render() {
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -168,7 +168,7 @@ void MainUI::render() {
     glfwSwapBuffers(window);
 }
 
-void MainUI::terminate() {
+void Gii::terminate() {
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -178,7 +178,7 @@ void MainUI::terminate() {
     glfwTerminate();
 }
 
-MainUI::~MainUI() {
+Gii::~Gii() {
 
 }
 
