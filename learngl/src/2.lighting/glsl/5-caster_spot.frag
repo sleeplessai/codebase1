@@ -14,7 +14,7 @@ struct Material {
 };
 struct SpotLight {
     vec3 ambient, diffuse, specular, position, direction;
-    float cutoff;
+    float cutoff, outer_cutoff;
 };
 
 uniform Material material;
@@ -36,11 +36,8 @@ void main() {
     vec3 specular = light.specular * spec * vec3(texture(material.specular, TexCoords));
 
     float theta = dot(light_dir, normalize(-light.direction));
-
-    if (theta > light.cutoff) {
-        FragColor = vec4(ambient + diffuse + specular, 1.f);
-    } else {
-        FragColor = vec4(ambient, 1.f);
-    }
+    float epsilon = light.cutoff - light.outer_cutoff;
+    float intensity = clamp((theta - light.outer_cutoff) / epsilon, 0.f, 1.f);
+    FragColor = vec4(ambient + intensity * (diffuse + specular), 1.f);
 }
 

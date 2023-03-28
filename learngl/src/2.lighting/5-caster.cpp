@@ -34,7 +34,6 @@ static struct WindowInfo {
     }
 } wnd_info;
 
-
 //#define __Paralleling_light_rendering
 //#define __Point_light_rendering
 #define __Spot_light_rendering
@@ -48,19 +47,6 @@ auto fetch_point_light_data(int index) {
     int range = std::get<int>(db.query(index,"Range").value);
     glm::vec3 quad = std::get<glm::vec3>(db.query(index,"ConstantLinearQuadratic").value);
     return std::tuple{range, quad};
-}
-auto fetch_spot_light_data(int index) {
-    kit::CsvDatabase db("assets/gl_spotlight_smoothness.csv", "gl_spotlight_smoothness");
-    db.open();
-    db.buffer();
-    db.show_meta();
-    if (index < 0) index = db.record.size() + index;
-    float theta_deg = std::get<float>(db.query(index, "ThetaInDegrees").value);
-    float in_cutoff_deg = std::get<float>(db.query(index, "InnerCutoffInDegrees").value);
-    float out_cutoff_deg = std::get<float>(db.query(index, "OuterCutoffInDegrees").value);
-    float eps = std::get<float>(db.query(index, "Epsilon").value);
-    float intensity = std::get<float>(db.query(index, "Intensity").value);
-    return std::tuple{theta_deg, in_cutoff_deg, out_cutoff_deg, eps, intensity};
 }
 
 int main() {
@@ -98,7 +84,6 @@ int main() {
     light_pos = {10.f, 0.f, 0.f};
 
     auto [range, quadratic] = fetch_point_light_data(6);
-    auto [theta, in_cutoff, out_cutoff, eps, intensity] = fetch_spot_light_data(-1);
 
     struct Material {
         unsigned int diffuse, specular;
@@ -112,7 +97,7 @@ int main() {
     };
     struct SpotLight {
         glm::vec3 ambient, diffuse, specular, position, direction;
-        float cutoff;
+        float cutoff, outer_cutoff;
     };
     Material ml {
         .diffuse = kit::make_texture("assets/container2.png"),
@@ -145,7 +130,8 @@ int main() {
             glm::vec3(1.0f),
             glm::vec3{},
             glm::vec3{},
-            in_cutoff
+            12.5f,
+            20.5f,
         },
     };
 
@@ -313,8 +299,9 @@ int main() {
         spot_shader.setVec3("light.specular", lt.specular);
         spot_shader.setVec3("light.position", cam.position);
         spot_shader.setVec3("light.direction", cam.front);
-
         spot_shader.setFloat("light.cutoff", glm::cos(glm::radians(lt.cutoff)));
+        spot_shader.setFloat("light.outer_cutoff", glm::cos(glm::radians(lt.outer_cutoff)));
+
         projection = glm::perspective(glm::radians(cam.fovy), wnd_info.aspect, 0.1f, 100.f);
 
         spot_shader.setMat4("projection", projection);
@@ -340,7 +327,6 @@ int main() {
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 #endif
-
         // cubric light source placement
         cube_shader.use();
         model = glm::mat4(1.0f);
