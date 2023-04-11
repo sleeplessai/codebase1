@@ -10,13 +10,13 @@
 
 namespace kit {
 
-class CamInst {
+class FreeLookCam {
 public:
-    CamInst(const CamInst&) = delete;
-    CamInst& operator=(const CamInst&) = delete;
+    FreeLookCam(const FreeLookCam&) = delete;
+    FreeLookCam& operator=(const FreeLookCam&) = delete;
 
-    static CamInst& get_instance() {
-        static CamInst cam_inst;
+    static FreeLookCam& get_instance() {
+        static FreeLookCam cam_inst;
         return cam_inst;
     }
 
@@ -81,14 +81,10 @@ public:
             cam.fovy = 100.0f;
     }
 
-    ~CamInst() {
-        //std::clog << "Camera instance destructed.\n";
-    }
-
 private:
-    CamInst() = default;
+    FreeLookCam() = default;
 };
 
-using FreeLookCamera = CamInst; // alias
+using FreeLookCamera = FreeLookCam; // alias
 
 }

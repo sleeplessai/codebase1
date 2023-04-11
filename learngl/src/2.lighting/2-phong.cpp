@@ -12,7 +12,7 @@
 #include "fmt/core.h"
 
 #include "kit/shader_v1.h"
-#include "kit/free_look_camera.h"
+#include "kit/cam_inst.h"
 
 
 void process_input(GLFWwindow *window);

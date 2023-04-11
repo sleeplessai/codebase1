@@ -19,6 +19,9 @@ set(link_libs ${link_libs} glfw)
 find_package(fmt REQUIRED)
 set(link_libs ${link_libs} fmt)
 
+find_package(assimp REQUIRED)
+set(link_libs ${link_libs} assimp)
+
 add_library(Glad lib/glad.c)
 set(link_libs ${link_libs} Glad)
 

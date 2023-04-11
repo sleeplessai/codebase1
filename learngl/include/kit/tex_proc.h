@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdlib>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <stdexcept>
@@ -27,6 +26,8 @@ inline unsigned int make_texture(const std::string& tex_image, bool error_exit =
         tex_fmt = GL_RGBA;
     } else if (channels == 3) {
         tex_fmt = GL_RGB;
+    } else if (channels == 1) {
+        tex_fmt = GL_RED;
     } else {
         fmt::print("Unsupported texture image channel {}.", channels);
         if (error_exit) ::exit(-1);
@@ -47,6 +48,13 @@ inline unsigned int make_texture(const std::string& tex_image, bool error_exit =
     stbi_image_free(tex_data);
 
     return texture;
+}
+
+inline unsigned int make_texture(const std::string& path, const std::string& directory, bool gamma = false) {
+    std::string filename{directory + '/' + path};
+
+    unsigned int textureID = make_texture(filename, true);
+    return textureID;
 }
 
 }
