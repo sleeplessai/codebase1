@@ -1,5 +1,0 @@
-file(GLOB_RECURSE imgui_srcs CONFIGURE_DEPENDS src/*.cpp include/*.h)
-find_package(glfw3 REQUIRED)
-add_library(imgui_docking ${imgui_srcs})
-target_link_libraries(imgui_docking glfw)
-target_include_directories(imgui_docking PUBLIC include)
