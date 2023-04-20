@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <functional>
+#include <queue>
 #include <vector>
 #include <vk_types.h>
 #include <vulkan/vulkan.h>
@@ -59,11 +61,30 @@ private:
   VkSemaphore _present_semaphore, _render_semaphore;
   VkFence _render_fence;
 
+  VkPipelineLayout _triangle_pipeline_layout;
+  VkPipeline _triangle_pipeline;
+
+  struct DestroyQueue {
+    std::queue<std::function<void()>> destroyer;
+
+    void push_back(std::function<void()>&& func) {
+      destroyer.push(func);
+    }
+    void flush() {
+      while (!destroyer.empty()) {
+        destroyer.front()();
+        destroyer.pop();
+      }
+    }
+  } _destroy_queue;
+
   void init_vulkan();
   void init_swapchain();
   void init_commands();
   void init_default_renderpass();
   void init_framebuffers();
   void init_sync_structures();
+  bool load_shader_module(const char* file_path, VkShaderModule* module);
+  void init_pipelines();
 };
 

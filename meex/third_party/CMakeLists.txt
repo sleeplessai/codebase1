@@ -30,7 +30,7 @@ target_include_directories(tinyobjloader PUBLIC tinyobjloader)
 
 add_library(sdl2 INTERFACE)
 #set(sdl2_DIR "SDL_PATH" CACHE PATH "Path to SDL2")
-set(sdl2_DIR "/usr/")
+set(sdl2_DIR "/usr")
 
 if (WIN32)
   target_include_directories(sdl2 INTERFACE ${sdl2_DIR}/include ${sdl2_image_DIR}/include)
@@ -43,19 +43,20 @@ endif()
 target_link_libraries(sdl2 INTERFACE SDL2 SDL2main)
 
 add_library(imgui STATIC)
+set(imgui_DIR "imgui2")
 
-target_include_directories(imgui PUBLIC imgui)
+target_include_directories(imgui PUBLIC ${imgui_DIR})
 
 target_sources(imgui PRIVATE 
-  imgui/imgui.h
-  imgui/imgui.cpp
+  ${imgui_DIR}/imgui.h
+  ${imgui_DIR}/imgui.cpp
 
-  imgui/imgui_demo.cpp
-  imgui/imgui_draw.cpp
-  imgui/imgui_widgets.cpp
+  ${imgui_DIR}/imgui_demo.cpp
+  ${imgui_DIR}/imgui_draw.cpp
+  ${imgui_DIR}/imgui_widgets.cpp
 
-  imgui/imgui_impl_vulkan.cpp
-  imgui/imgui_impl_sdl.cpp
+  ${imgui_DIR}/imgui_impl_vulkan.cpp
+  ${imgui_DIR}/imgui_impl_sdl2.cpp
 )
 
 target_link_libraries(imgui PUBLIC Vulkan::Vulkan sdl2)
