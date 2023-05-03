@@ -1,42 +1,47 @@
-﻿#include "vk_engine.h"
-#include "vk_pipeline.h"
-
-#include <SDL.h>
-#include <SDL_vulkan.h>
-
-#include <cmath>
-#include <fstream>
+﻿#include <vk_engine.h>
+#include <vk_scene.h>
+#include <vk_pipeline.h>
 #include <vk_types.h>
 #include <vk_initializers.h>
 
-#include "VkBootstrap.h"
-
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <fstream>
 #include <iostream>
+#include <memory>
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/glm.hpp>
 #include <vulkan/vulkan_core.h>
+#include <VkBootstrap.h>
+#include <SDL_vulkan.h>
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
 
 
 #define VK_CHECK(x)                                        \
 do {                                                       \
   VkResult err = x;                                        \
   if (err) {                                               \
-    std::cerr << "Detected Vulkan error: " << err << '\n'; \
+    std::cerr << "Vulkan error occurred: " << err << '\n'; \
     std::exit(err);                                        \
   }                                                        \
 } while (0)
 
 
-void VulkanEngine::init() {
+void Engine::init() {
   // We initialize SDL and create a window with it. 
   SDL_Init(SDL_INIT_VIDEO);
 
   SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
 
-  _window = SDL_CreateWindow(
-    "Vulkan Engine",
+  window = SDL_CreateWindow(
+    "Meex",
     SDL_WINDOWPOS_UNDEFINED,
     SDL_WINDOWPOS_UNDEFINED,
-    _windowExtent.width,
-    _windowExtent.height,
+    window_extent.width,
+    window_extent.height,
     window_flags
   );
 
@@ -53,13 +58,15 @@ void VulkanEngine::init() {
   init_sync_structures();
   // init pipelines
   init_pipelines();
+  // load and upload meshses
+  load_meshes();
 
   //everything went fine
-  _isInitialized = true;
+  is_initialized = true;
 }
 
-void VulkanEngine::cleanup() {
-  if (_isInitialized) {
+void Engine::cleanup() {
+  if (is_initialized) {
     vkWaitForFences(_device, 1, &_render_fence, true, 1000000000);
 
     for (auto& iv : _swapchain_image_views) {
@@ -68,16 +75,17 @@ void VulkanEngine::cleanup() {
 
     _destroy_queue.flush();
 
+    vmaDestroyAllocator(_allocator);
     vkDestroyDevice(_device, nullptr);
     vkDestroySurfaceKHR(_instance, _surface, nullptr);
     vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
     vkDestroyInstance(_instance, nullptr);
 
-    SDL_DestroyWindow(_window);
+    SDL_DestroyWindow(window);
   }
 }
 
-void VulkanEngine::draw() {
+void Engine::draw() {
   //wait until the GPU has finished rendering the last frame. Timeout of 1 second
   VK_CHECK(vkWaitForFences(_device, 1, &_render_fence, true, 1000000000));
   VK_CHECK(vkResetFences(_device, 1, &_render_fence));
@@ -95,25 +103,49 @@ void VulkanEngine::draw() {
 
   VK_CHECK(vkBeginCommandBuffer(cmd, &cmd_begin_info));
 
-  VkClearValue clear_value;
-  float flash = std::abs(std::sin(_frameNumber / 60.f));
-  clear_value.color = {{ 0.f, flash, 0.f, 1.f }};
+  VkClearValue backg_clear;
+  float flash = std::abs(std::sin(frame_count / 60.f));
+  backg_clear.color = {{ 0.f, flash, 0.f, 1.f }};
+  VkClearValue depth_clear;
+  depth_clear.depthStencil.depth = 1.0f;
+
+  std::array<VkClearValue, 2> clear_values = {backg_clear, depth_clear};
 
   VkRenderPassBeginInfo _rp_begin_info = {};
   _rp_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   _rp_begin_info.pNext = nullptr;
   _rp_begin_info.renderPass = _render_pass;
   _rp_begin_info.renderArea.offset.x = _rp_begin_info.renderArea.offset.y = 0;
-  _rp_begin_info.renderArea.extent = _windowExtent;
+  _rp_begin_info.renderArea.extent = window_extent;
   _rp_begin_info.framebuffer = _framebuffers[swapchain_image_index];
-  _rp_begin_info.clearValueCount = 1;
-  _rp_begin_info.pClearValues = &clear_value;
+  _rp_begin_info.clearValueCount = clear_values.size();
+  _rp_begin_info.pClearValues = clear_values.data();
 
   vkCmdBeginRenderPass(cmd, &_rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
   //triangle drawcall cmd
+  /*
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _triangle_pipeline);
   vkCmdDraw(cmd, 3, 1, 0, 0);
+  */
+
+  // triangle mesh draw call cmd
+  glm::vec3 cam_pos = {0.0f, 0.0f, -3.0f};
+  glm::mat4 view = glm::translate(glm::mat4(1.0f), cam_pos);
+  auto _aspect = static_cast<float>(window_extent.width) / window_extent.height;
+  glm::mat4 projection = glm::perspective(glm::radians(70.0f), _aspect, 0.1f, 200.0f);
+  projection[1][1] *= -1;
+  glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(frame_count*0.618f), glm::vec3(0.0f, 1.0f, 0.0f));
+  MeshPushConstants push_const;
+  push_const.render_matrix = projection * view * model;
+
+  vkCmdPushConstants(cmd, _mesh_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &push_const);
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _mesh_pipeline);
+  VkDeviceSize offset = 0;
+  //vkCmdBindVertexBuffers(cmd, 0, 1, &_triangle_mesh.vertex_buffer.buffer, &offset);
+  //vkCmdDraw(cmd, _triangle_mesh.vertices.size(), 1, 0, 0);
+  vkCmdBindVertexBuffers(cmd, 0, 1, &_monkey_mesh.vertex_buffer.buffer, &offset);
+  vkCmdDraw(cmd, _monkey_mesh.vertices.size(), 1, 0, 0);
 
   vkCmdEndRenderPass(cmd);
   VK_CHECK(vkEndCommandBuffer(cmd));
@@ -148,27 +180,32 @@ void VulkanEngine::draw() {
   present_info.pImageIndices = &swapchain_image_index;
 
   VK_CHECK(vkQueuePresentKHR(_graphics_queue, &present_info));
-  _frameNumber++;
+  frame_count++;
 
 }
 
-void VulkanEngine::run() {
-  SDL_Event e;
-  bool bQuit = false;
+void Engine::run() {
+  SDL_Event e{};
+  bool quit{false};
 
   //main loop
-  while (!bQuit) {
+  while (!quit) {
     //Handle events on queue
     while (SDL_PollEvent(&e) != 0) {
-      //close the window when user alt-f4s or clicks the X button
-      if (e.type == SDL_QUIT) bQuit = true;
+      if (e.type == SDL_QUIT) {
+        quit = true;
+      } else if (e.type == SDL_KEYDOWN) {
+        if (e.key.keysym.sym == SDLK_ESCAPE) {
+          quit = true;
+        }
+      }
     }
 
     draw();
   }
 }
 
-void VulkanEngine::init_vulkan() {
+void Engine::init_vulkan() {
   // Instance
   vkb::InstanceBuilder builder;
   auto inst_ret = builder
@@ -183,7 +220,7 @@ void VulkanEngine::init_vulkan() {
   _debug_messenger = vkb_inst.debug_messenger;
 
   // Surface
-  SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
+  SDL_Vulkan_CreateSurface(window, _instance, &_surface);
 
   // Device
   vkb::PhysicalDeviceSelector selector{vkb_inst};
@@ -201,15 +238,23 @@ void VulkanEngine::init_vulkan() {
   // Queue
   _graphics_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
   _graphics_queue_family = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
+
+  // VMAllocator
+  VmaAllocatorCreateInfo allocator_info = {};
+  allocator_info.instance = _instance;
+  allocator_info.physicalDevice = _physical_device;
+  allocator_info.device = _device;
+
+  vmaCreateAllocator(&allocator_info, &_allocator);
 }
 
-void VulkanEngine::init_swapchain() {
+void Engine::init_swapchain() {
   // Swapchain
   vkb::SwapchainBuilder swapchain_builder{_physical_device, _device, _surface};
   vkb::Swapchain vkb_swapchain = swapchain_builder
     .use_default_format_selection()
     .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-    .set_desired_extent(_windowExtent.width, _windowExtent.height)
+    .set_desired_extent(window_extent.width, window_extent.height)
     .build()
     .value();
 
@@ -218,12 +263,27 @@ void VulkanEngine::init_swapchain() {
   _swapchain_image_views = vkb_swapchain.get_image_views().value();
   _swapchain_image_format = vkb_swapchain.image_format;
 
+  // Depthmap
+  VkExtent3D depth_extent = {window_extent.width, window_extent.height, 1};
+  _depth_format = VK_FORMAT_D32_SFLOAT;
+  VkImageCreateInfo depth_info = vkinit::image_create_info(_depth_format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depth_extent);
+  VmaAllocationCreateInfo alloc_info = {};
+  alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+  alloc_info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  vmaCreateImage(_allocator, &depth_info, &alloc_info, &_depth_image.image, &_depth_image.allocation, nullptr);
+
+  VkImageViewCreateInfo depth_view_info = vkinit::image_view_create_info(_depth_format, _depth_image.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+  VK_CHECK(vkCreateImageView(_device, &depth_view_info, nullptr, &_depth_image_view));
+
   _destroy_queue.push_back([this]() {
     vkDestroySwapchainKHR(_device, _swapchain, nullptr);
+    vkDestroyImageView(_device, _depth_image_view, nullptr);
+    vmaDestroyImage(_allocator, _depth_image.image, _depth_image.allocation);
   });
 }
 
-void VulkanEngine::init_commands() {
+void Engine::init_commands() {
   // Commands
   auto command_pool_info = vkinit::command_pool_create_info(_graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
   VK_CHECK(vkCreateCommandPool(_device, &command_pool_info, nullptr, &_command_pool));
@@ -237,9 +297,9 @@ void VulkanEngine::init_commands() {
   });
 }
 
-void VulkanEngine::init_default_renderpass() {
+void Engine::init_default_renderpass() {
+  // Color attachment
   VkAttachmentDescription color_attachment = {};
-
   color_attachment.format = _swapchain_image_format;
   color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
   color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -253,19 +313,57 @@ void VulkanEngine::init_default_renderpass() {
   color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   color_attachment_ref.attachment = 0;
 
+  // Depth attachment
+  VkAttachmentDescription depth_attachment = {};
+  depth_attachment.format = _depth_format;
+  depth_attachment.flags = 0;
+  depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+  depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+  VkAttachmentReference depth_attachment_ref = {};
+  depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  depth_attachment_ref.attachment = 1;
+
+  // Subpass and dependencies
   VkSubpassDescription subpass_desc = {};
   subpass_desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
   subpass_desc.colorAttachmentCount = 1;
   subpass_desc.pColorAttachments = &color_attachment_ref;
+  subpass_desc.pDepthStencilAttachment = &depth_attachment_ref;
 
+  VkSubpassDependency color_dep = {};
+  color_dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+  color_dep.dstSubpass = 0;
+  color_dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  color_dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  color_dep.srcAccessMask = 0;
+  color_dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+  VkSubpassDependency depth_dep = {};
+  depth_dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+  depth_dep.dstSubpass = 0;
+  depth_dep.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+  depth_dep.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+  depth_dep.srcAccessMask = 0;
+  depth_dep.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+  std::array<VkSubpassDependency, 2> dependencies = {color_dep, depth_dep};
 
   // Render Pass
+  std::array<VkAttachmentDescription, 2> attachments = {color_attachment, depth_attachment};
   VkRenderPassCreateInfo render_pass_info = {};
 
   render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
   render_pass_info.pNext = nullptr;
-  render_pass_info.attachmentCount = 1;
-  render_pass_info.pAttachments = &color_attachment;
+  render_pass_info.attachmentCount = attachments.size();
+  render_pass_info.pAttachments = attachments.data();
+  render_pass_info.dependencyCount = dependencies.size();
+  render_pass_info.pDependencies = dependencies.data();
   render_pass_info.subpassCount = 1;
   render_pass_info.pSubpasses = &subpass_desc;
 
@@ -277,7 +375,7 @@ void VulkanEngine::init_default_renderpass() {
 
 }
 
-void VulkanEngine::init_framebuffers() {
+void Engine::init_framebuffers() {
   VkFramebufferCreateInfo framebuffer_info = {};
 
   framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -285,8 +383,8 @@ void VulkanEngine::init_framebuffers() {
 
   framebuffer_info.renderPass = _render_pass;
   framebuffer_info.attachmentCount = 1;
-  framebuffer_info.width = _windowExtent.width;
-  framebuffer_info.height = _windowExtent.height;
+  framebuffer_info.width = window_extent.width;
+  framebuffer_info.height = window_extent.height;
   framebuffer_info.layers = 1;
 
   // requesting an image from swapchain will block cpu threads until the image is available
@@ -294,7 +392,13 @@ void VulkanEngine::init_framebuffers() {
   _framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
 
   for (int i = 0; i < swapchain_image_count; ++i) {
-    framebuffer_info.pAttachments = &_swapchain_image_views[i];
+    std::array<VkImageView, 2> attachments = {
+      _swapchain_image_views[i],
+      _depth_image_view
+    };
+    framebuffer_info.attachmentCount = attachments.size();
+    framebuffer_info.pAttachments = attachments.data();
+
     VK_CHECK(vkCreateFramebuffer(_device, &framebuffer_info, nullptr, &_framebuffers[i]));
 
     _destroy_queue.push_back([this, i]() {
@@ -304,7 +408,7 @@ void VulkanEngine::init_framebuffers() {
 
 }
 
-void VulkanEngine::init_sync_structures() {
+void Engine::init_sync_structures() {
 
   VkFenceCreateInfo fence_create_info = vkinit::fence_create_info();
 
@@ -326,7 +430,7 @@ void VulkanEngine::init_sync_structures() {
 
 }
 
-bool VulkanEngine::load_shader_module(const char* file_path, VkShaderModule* out_module) {
+bool Engine::load_shader_module(const char* file_path, VkShaderModule* out_module) {
   using dtype = uint32_t;
 
   std::ifstream file(file_path, std::ios::ate | std::ios::binary);
@@ -352,8 +456,7 @@ bool VulkanEngine::load_shader_module(const char* file_path, VkShaderModule* out
   return true;
 }
 
-void VulkanEngine::init_pipelines() {
-
+void Engine::init_pipelines() {
   VkShaderModule triangle_vert_shader;
   if (!load_shader_module("shaders/triangle.vert.spv", &triangle_vert_shader)) {
     std::cerr << "Vertex shader error!\n";
@@ -367,6 +470,8 @@ void VulkanEngine::init_pipelines() {
   VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_triangle_pipeline_layout));
 
   PipelineBuilder builder;
+
+  // hard-coded triangle pipeline
   builder._shader_stages.push_back(
     vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, triangle_vert_shader));
   builder._shader_stages.push_back(
@@ -376,27 +481,112 @@ void VulkanEngine::init_pipelines() {
   builder._input_assembly = vkinit::input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
   builder._viewport.x = builder._viewport.y = 0.0f;
-  builder._viewport.width = (float)_windowExtent.width;
-  builder._viewport.height = (float)_windowExtent.height;
+  builder._viewport.width = (float)window_extent.width;
+  builder._viewport.height = (float)window_extent.height;
   builder._viewport.minDepth = 0.0f;
   builder._viewport.maxDepth = 1.0f;
 
   builder._scissor.offset = {0, 0};
-  builder._scissor.extent = _windowExtent;
+  builder._scissor.extent = window_extent;
 
   builder._rasterizer = vkinit::rasterization_state_create_info(VK_POLYGON_MODE_FILL);
   builder._multisampleing = vkinit::multisampling_state_create_info();
   builder._color_blend_attachment = vkinit::color_blend_attachment_state();
   builder._pipeline_layout = _triangle_pipeline_layout;
+  builder._depth_stencil = vkinit::depth_stencil_create_info(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
 
   _triangle_pipeline = builder.build_pipeline(_device, _render_pass);
 
+  // tirangle mesh pipeline
+  VkPushConstantRange push_constant;
+  push_constant.offset = 0;
+  push_constant.size = sizeof(MeshPushConstants);
+  push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkPipelineLayoutCreateInfo mesh_pipeline_layout_info = vkinit::pipeline_layout_create_info();
+  mesh_pipeline_layout_info.pPushConstantRanges = &push_constant;
+  mesh_pipeline_layout_info.pushConstantRangeCount = 1;
+
+  VK_CHECK(vkCreatePipelineLayout(_device, &mesh_pipeline_layout_info, nullptr, &_mesh_pipeline_layout));
+
+  VertexInputDescription vertex_description = Vertex::get_vertex_input_description();
+
+  builder._vertex_input_info.pVertexBindingDescriptions = vertex_description.bindings.data();
+  builder._vertex_input_info.vertexBindingDescriptionCount = vertex_description.bindings.size();
+  builder._vertex_input_info.pVertexAttributeDescriptions = vertex_description.attributes.data();
+  builder._vertex_input_info.vertexAttributeDescriptionCount = vertex_description.attributes.size();
+
+  builder._shader_stages.clear();
+
+  VkShaderModule trimesh_vert_shader;
+  if (!load_shader_module("shaders/tri_mesh.vert.spv", &trimesh_vert_shader)) {
+    std::cerr << "Mesh Vertex shader error!\n";
+  }
+  builder._shader_stages.push_back(
+    vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, trimesh_vert_shader));
+  builder._shader_stages.push_back(
+    vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangle_frag_shader));
+  builder._pipeline_layout = _mesh_pipeline_layout;
+
+  _mesh_pipeline = builder.build_pipeline(_device, _render_pass);
+
   vkDestroyShaderModule(_device, triangle_frag_shader, nullptr);
   vkDestroyShaderModule(_device, triangle_vert_shader, nullptr);
+  vkDestroyShaderModule(_device, trimesh_vert_shader, nullptr);
 
   _destroy_queue.push_back([this]() {
     vkDestroyPipeline(_device, _triangle_pipeline, nullptr);
+    vkDestroyPipeline(_device, _mesh_pipeline, nullptr);
+
     vkDestroyPipelineLayout(_device, _triangle_pipeline_layout, nullptr);
+    vkDestroyPipelineLayout(_device, _mesh_pipeline_layout, nullptr);
   });
+
+}
+
+void Engine::load_meshes() {
+  _triangle_mesh.vertices.resize(3);
+  _triangle_mesh.vertices = {
+    {{0.5f, 0.5f, 0.0f},  {}, {0.0f, 0.0f, 0.5f}},
+    {{-0.5f, 0.5f, 0.0f}, {}, {0.0f, 0.5f, 0.2f}},
+    {{0.0f, -0.5f, 0.0f}, {}, {0.5f, 0.0f, 0.2f}}
+  };
+
+  _monkey_mesh.load_from_obj("assets/monkey_smooth.obj");
+  //_lost_empire_mesh.load_from_obj("assets/lost_empire.obj");
+
+  upload_meshes(_triangle_mesh);
+  upload_meshes(_monkey_mesh);
+
+}
+
+void Engine::upload_meshes(Mesh& mesh) {
+  VkBufferCreateInfo buffer_info = {};
+
+  buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  buffer_info.pNext = nullptr;
+  buffer_info.size = sizeof(Vertex) * mesh.vertices.size();
+  buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+  VmaAllocationCreateInfo vmalloc_info = {};
+  vmalloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
+  VK_CHECK(vmaCreateBuffer(
+    _allocator,
+    &buffer_info,
+    &vmalloc_info,
+    &mesh.vertex_buffer.buffer,
+    &mesh.vertex_buffer.allocation,
+    nullptr
+  ));
+
+  _destroy_queue.push_back([&mesh, this]() {
+    vmaDestroyBuffer(_allocator, mesh.vertex_buffer.buffer, mesh.vertex_buffer.allocation);
+  });
+
+  void* data_ptr;
+  vmaMapMemory(_allocator, mesh.vertex_buffer.allocation, &data_ptr);
+  memcpy(data_ptr, mesh.vertices.data(), buffer_info.size);
+  vmaUnmapMemory(_allocator, mesh.vertex_buffer.allocation);
 
 }

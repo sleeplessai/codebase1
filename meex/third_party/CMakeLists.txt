@@ -27,15 +27,14 @@ target_sources(tinyobjloader PRIVATE
 
 target_include_directories(tinyobjloader PUBLIC tinyobjloader)
 
-
 add_library(sdl2 INTERFACE)
 #set(sdl2_DIR "SDL_PATH" CACHE PATH "Path to SDL2")
-set(sdl2_DIR "/usr")
 
 if (WIN32)
-  target_include_directories(sdl2 INTERFACE ${sdl2_DIR}/include ${sdl2_image_DIR}/include)
-  target_link_directories(sdl2 INTERFACE ${sdl2_DIR}/lib/x64 ${sdl2_image_DIR}/lib/x64)
+  #target_include_directories(sdl2 INTERFACE ${sdl2_DIR}/include ${sdl2_image_DIR}/include)
+  #target_link_directories(sdl2 INTERFACE ${sdl2_DIR}/lib/x64 ${sdl2_image_DIR}/lib/x64)
 elseif (UNIX)
+  set(sdl2_DIR "/usr")
   target_include_directories(sdl2 INTERFACE ${sdl2_DIR}/include/SDL2 ${sdl2_image_DIR}/include/SDL2)
   target_link_directories(sdl2 INTERFACE ${sdl2_DIR}/lib ${sdl2_image_DIR}/lib)
 endif()
@@ -47,7 +46,7 @@ set(imgui_DIR "imgui2")
 
 target_include_directories(imgui PUBLIC ${imgui_DIR})
 
-target_sources(imgui PRIVATE 
+target_sources(imgui PRIVATE
   ${imgui_DIR}/imgui.h
   ${imgui_DIR}/imgui.cpp
 

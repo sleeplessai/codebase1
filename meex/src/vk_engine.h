@@ -3,34 +3,39 @@
 
 #pragma once
 
+#include <vk_scene.h>
+#include <vk_types.h>
+
 #include <functional>
+#include <glm/glm.hpp>
 #include <queue>
 #include <vector>
-#include <vk_types.h>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
+#include <vk_mem_alloc.h>
+#include <SDL.h>
 
-class VulkanEngine {
+
+class Engine {
 public:
-  VulkanEngine() = default;
-  VulkanEngine(VulkanEngine&) = delete;
-  VulkanEngine& operator=(VulkanEngine&) = delete;
+  Engine() = default;
+  Engine(Engine&) = delete;
+  Engine& operator=(Engine&) = delete;
+  Engine(Engine&&) = delete;
+  Engine& operator=(Engine&&) = delete;
 
-  bool _isInitialized{false};
-  int _frameNumber{0};
+  bool is_initialized{false};
+  uint32_t frame_count{0};
 
-  VkExtent2D _windowExtent{1600, 900};
-  struct SDL_Window* _window{nullptr};
+  VkExtent2D window_extent{1600, 900};
+  SDL_Window* window{nullptr};
 
   //initializes everything in the engine
   void init();
-
   //shuts down the engine
   void cleanup();
-
   //draw loop
   void draw();
-
   //run main loop
   void run();
 
@@ -61,30 +66,50 @@ private:
   VkSemaphore _present_semaphore, _render_semaphore;
   VkFence _render_fence;
 
+  // vk pipelines, meshes, depth maps
   VkPipelineLayout _triangle_pipeline_layout;
   VkPipeline _triangle_pipeline;
 
-  struct DestroyQueue {
-    std::queue<std::function<void()>> destroyer;
+  VmaAllocator _allocator;
+  VkPipelineLayout _mesh_pipeline_layout;
+  VkPipeline _mesh_pipeline;
+  Mesh _triangle_mesh;
+  Mesh _monkey_mesh;
+  Mesh _lost_empire_mesh;
 
+  VkImageView _depth_image_view;
+  AllocatedImage _depth_image;
+  VkFormat _depth_format;
+
+  struct MeshPushConstants {
+    glm::vec4 data;
+    glm::mat4 render_matrix;
+  };
+
+  struct DestroyQueue {
     void push_back(std::function<void()>&& func) {
-      destroyer.push(func);
+      __dq.push(func);
     }
     void flush() {
-      while (!destroyer.empty()) {
-        destroyer.front()();
-        destroyer.pop();
+      while (!__dq.empty()) {
+        __dq.front()();
+        __dq.pop();
       }
     }
-  } _destroy_queue;
+  private: std::queue<std::function<void()>> __dq{};
+  } _destroy_queue{};
 
+  //void init_imgui();
   void init_vulkan();
   void init_swapchain();
   void init_commands();
   void init_default_renderpass();
   void init_framebuffers();
   void init_sync_structures();
-  bool load_shader_module(const char* file_path, VkShaderModule* module);
   void init_pipelines();
+
+  bool load_shader_module(const char* file_path, VkShaderModule* module);
+  void load_meshes();
+  void upload_meshes(Mesh& mesh);
 };
 
