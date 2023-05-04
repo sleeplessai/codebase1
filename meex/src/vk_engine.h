@@ -73,9 +73,8 @@ private:
   VmaAllocator _allocator;
   VkPipelineLayout _mesh_pipeline_layout;
   VkPipeline _mesh_pipeline;
-  Mesh _triangle_mesh;
-  Mesh _monkey_mesh;
-  Mesh _lost_empire_mesh;
+
+  Scene _scene;
 
   VkImageView _depth_image_view;
   AllocatedImage _depth_image;
@@ -107,6 +106,8 @@ private:
   void init_framebuffers();
   void init_sync_structures();
   void init_pipelines();
+  void init_scene();
+  void draw_objects(VkCommandBuffer cmd, Scene const& scene);
 
   bool load_shader_module(const char* file_path, VkShaderModule* module);
   void load_meshes();

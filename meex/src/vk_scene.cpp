@@ -1,6 +1,9 @@
+#include <vk_engine.h>
 #include <vk_scene.h>
 #include <tiny_obj_loader.h>
 #include <iostream>
+#include <glm/gtc/matrix_transform.hpp>
+#include <vulkan/vulkan_core.h>
 
 
 VertexInputDescription Vertex::get_vertex_input_description() {
@@ -76,4 +79,15 @@ bool Mesh::load_from_obj(const std::string& filename) {
 
   return true;
 }
+
+Mesh& Scene::add_mesh(Mesh& mesh, std::string const& name) {
+  meshes.emplace(name, mesh);
+  return meshes[name];
+}
+
+Material& Scene::add_material(VkPipeline pipeline, VkPipelineLayout layout, std::string const& name) {
+  materials.emplace(name, Material{pipeline, layout});
+  return materials[name];
+}
+
 

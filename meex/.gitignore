@@ -1,2 +1,4 @@
 /build
 /bin
+/shaders/*.spv
+/.cache

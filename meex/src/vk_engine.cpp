@@ -60,6 +60,8 @@ void Engine::init() {
   init_pipelines();
   // load and upload meshses
   load_meshes();
+  // scene
+  init_scene();
 
   //everything went fine
   is_initialized = true;
@@ -123,29 +125,7 @@ void Engine::draw() {
 
   vkCmdBeginRenderPass(cmd, &_rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-  //triangle drawcall cmd
-  /*
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _triangle_pipeline);
-  vkCmdDraw(cmd, 3, 1, 0, 0);
-  */
-
-  // triangle mesh draw call cmd
-  glm::vec3 cam_pos = {0.0f, 0.0f, -3.0f};
-  glm::mat4 view = glm::translate(glm::mat4(1.0f), cam_pos);
-  auto _aspect = static_cast<float>(window_extent.width) / window_extent.height;
-  glm::mat4 projection = glm::perspective(glm::radians(70.0f), _aspect, 0.1f, 200.0f);
-  projection[1][1] *= -1;
-  glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(frame_count*0.618f), glm::vec3(0.0f, 1.0f, 0.0f));
-  MeshPushConstants push_const;
-  push_const.render_matrix = projection * view * model;
-
-  vkCmdPushConstants(cmd, _mesh_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &push_const);
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _mesh_pipeline);
-  VkDeviceSize offset = 0;
-  //vkCmdBindVertexBuffers(cmd, 0, 1, &_triangle_mesh.vertex_buffer.buffer, &offset);
-  //vkCmdDraw(cmd, _triangle_mesh.vertices.size(), 1, 0, 0);
-  vkCmdBindVertexBuffers(cmd, 0, 1, &_monkey_mesh.vertex_buffer.buffer, &offset);
-  vkCmdDraw(cmd, _monkey_mesh.vertices.size(), 1, 0, 0);
+  draw_objects(cmd, _scene);
 
   vkCmdEndRenderPass(cmd);
   VK_CHECK(vkEndCommandBuffer(cmd));
@@ -529,6 +509,7 @@ void Engine::init_pipelines() {
   builder._pipeline_layout = _mesh_pipeline_layout;
 
   _mesh_pipeline = builder.build_pipeline(_device, _render_pass);
+  _scene.add_material(_mesh_pipeline, _mesh_pipeline_layout, "default_mesh");
 
   vkDestroyShaderModule(_device, triangle_frag_shader, nullptr);
   vkDestroyShaderModule(_device, triangle_vert_shader, nullptr);
@@ -545,19 +526,22 @@ void Engine::init_pipelines() {
 }
 
 void Engine::load_meshes() {
-  _triangle_mesh.vertices.resize(3);
-  _triangle_mesh.vertices = {
+  Mesh triangle_mesh;
+  triangle_mesh.vertices.resize(3);
+  triangle_mesh.vertices = {
     {{0.5f, 0.5f, 0.0f},  {}, {0.0f, 0.0f, 0.5f}},
     {{-0.5f, 0.5f, 0.0f}, {}, {0.0f, 0.5f, 0.2f}},
     {{0.0f, -0.5f, 0.0f}, {}, {0.5f, 0.0f, 0.2f}}
   };
 
-  _monkey_mesh.load_from_obj("assets/monkey_smooth.obj");
-  //_lost_empire_mesh.load_from_obj("assets/lost_empire.obj");
+  Mesh monkey_mesh;
+  monkey_mesh.load_from_obj("assets/monkey_smooth.obj");
 
-  upload_meshes(_triangle_mesh);
-  upload_meshes(_monkey_mesh);
+  _scene.add_mesh(triangle_mesh, "triangle_mesh");
+  _scene.add_mesh(monkey_mesh, "monkey_mesh");
 
+  upload_meshes(_scene.meshes["triangle_mesh"]);
+  upload_meshes(_scene.meshes["monkey_mesh"]);
 }
 
 void Engine::upload_meshes(Mesh& mesh) {
@@ -590,3 +574,60 @@ void Engine::upload_meshes(Mesh& mesh) {
   vmaUnmapMemory(_allocator, mesh.vertex_buffer.allocation);
 
 }
+
+void Engine::init_scene() {
+  RenderableObject monkey {
+    std::make_unique<Mesh>(_scene.meshes["monkey_mesh"]),
+    std::make_unique<Material>(_scene.materials["default_mesh"]),
+    glm::mat4{1.0f}
+  };
+  _scene.objects.push_back(std::move(monkey));
+
+  for (int x = -20; x <= 20; ++x) {
+    for (int y = -20; y <= 20; ++y) {
+      glm::mat4 translate = glm::translate(glm::mat4{1.0f}, glm::vec3{x, 0, y});
+      glm::mat4 scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2f});
+      RenderableObject tri {
+        std::make_unique<Mesh>(_scene.meshes["triangle_mesh"]),
+        std::make_unique<Material>(_scene.materials["default_mesh"]),
+        translate * scale
+      };
+      _scene.objects.push_back(std::move(tri));
+    }
+  }
+}
+
+void Engine::draw_objects(VkCommandBuffer cmd, Scene const& scene) {
+  glm::vec3 cam_pos{0.0f, -5.0f, -10.0f};
+  glm::mat4 view = glm::translate(glm::mat4{1.0f}, cam_pos);
+  float _aspect = static_cast<float>(window_extent.width) / window_extent.height;
+  glm::mat4 projection = glm::perspective(glm::radians(72.0f), _aspect, 0.1f, 200.0f);
+  projection[1][1] *= -1;
+
+  Mesh* last_mesh{nullptr};
+  Material* last_material{nullptr};
+
+  for (auto& obj : scene.objects) {
+    glm::mat4 model = obj.transform_matrix;
+    glm::mat4 mvp = projection * view * model;
+
+    MeshPushConstants push_const;
+    push_const.render_matrix = mvp;
+
+    if (obj.material.get() != last_material) {
+      vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, obj.material->pipeline);
+      last_material = obj.material.get();
+    }
+    vkCmdPushConstants(cmd, obj.material->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &push_const);
+
+    VkDeviceSize offset = 0;
+    if (obj.mesh.get() != last_mesh) {
+      vkCmdBindVertexBuffers(cmd, 0, 1, &obj.mesh->vertex_buffer.buffer, &offset);
+      last_mesh = obj.mesh.get();
+    }
+
+    vkCmdDraw(cmd, obj.mesh->vertices.size(), 1, 0, 0);
+  }
+
+}
+
