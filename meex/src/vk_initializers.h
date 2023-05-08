@@ -1,10 +1,7 @@
-﻿// vulkan_guide.h : Include file for standard system include files,
-// or project specific include files.
-
-#pragma once
+﻿#pragma once
 
 #include <vk_types.h>
-#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.h>
 
 namespace vkinit {
 

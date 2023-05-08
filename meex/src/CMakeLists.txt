@@ -1,5 +1,5 @@
 
-# Add source to this project's executable.
+## Add sources to this project's executable.
 
 set(MeexExecutable meex)
 
@@ -14,12 +14,10 @@ add_executable(${MeexExecutable}
   vk_scene.cpp vk_scene.h
 )
 
-
 set_property(TARGET ${MeexExecutable} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${MeexExecutable}>")
 
-target_include_directories(${MeexExecutable} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(${MeexExecutable} vkbootstrap vma glm tinyobjloader imgui stb_image)
+target_include_directories(${MeexExecutable} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(${MeexExecutable} Vulkan::Vulkan sdl2)
+target_link_libraries(${MeexExecutable} MeexDependencies)
 
 add_dependencies(${MeexExecutable} Shaders)

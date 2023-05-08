@@ -13,11 +13,8 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
-#include <vulkan/vulkan_core.h>
 #include <VkBootstrap.h>
 #include <SDL_vulkan.h>
-#define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
 
 
 #define VK_CHECK(x)                                        \

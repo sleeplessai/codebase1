@@ -1,6 +1,4 @@
 ﻿#include <vk_initializers.h>
-#include <vulkan/vulkan_core.h>
-
 
 namespace vkinit {
 
