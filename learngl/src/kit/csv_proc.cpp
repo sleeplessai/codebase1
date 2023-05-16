@@ -5,9 +5,9 @@
 int main() {
     std::clog << "***Test Only, Please Ingnore~\n";
     std::array DB = {
-        kit::CsvDatabase{"../2.lighting/assets/phong_material_samples.csv", "phong_material_samples"},
-        kit::CsvDatabase{"../2.lighting/assets/gl_spotlight_smoothness.csv", "gl_spotlight_smoothness"},
-        kit::CsvDatabase{"../2.lighting/assets/point_light_attenuation.csv", "point_light_attenuation"},
+        kit::CsvDatabase{"assets/common/phong_material_samples.csv", "phong_material_samples"},
+        kit::CsvDatabase{"assets/common/gl_spotlight_smoothness.csv", "gl_spotlight_smoothness"},
+        kit::CsvDatabase{"assets/common/point_light_attenuation.csv", "point_light_attenuation"},
     };
 
     for (auto& db : DB) {

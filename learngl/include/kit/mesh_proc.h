@@ -12,18 +12,22 @@
 #include <glm/glm.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <iterator>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
+#include "kit/exception.h"
 #include "kit/tex_proc.h"
 #include "shader_m.h"
 
 
 namespace kit {
 
+namespace fs = std::filesystem;
 
 struct Vertex {
   glm::vec3 position;
@@ -32,9 +36,9 @@ struct Vertex {
 };
 
 struct Texture {
-  std::string path;
   unsigned int id;
   std::string type;
+  std::string path;
 };
 
 template <typename C>
@@ -53,42 +57,69 @@ struct ColorCard {
   C specular;
 };
 
+enum struct DrawMode {
+  Auto = 0, Color = 1, Texture = 2
+};
+
 struct Mesh {
   std::vector<Vertex> vertices;
   std::vector<unsigned int> elements;
   std::vector<Texture> textures;
   ColorCard<glm::vec3> colors;
 
-  unsigned int vao, vbo, ebo;
+  unsigned int gl_vao{}, gl_vbo{}, gl_ebo{};
 
-  enum struct DrawMode {
-    None = 0, Color = 1, Texture = 2
-  };
-
-  Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> elements, std::vector<Texture> textures) {
+  Mesh(std::vector<Vertex>&& vertices, std::vector<unsigned int>&& elements, std::vector<Texture>&& textures) {
     this->vertices = vertices;
     this->elements = elements;
     this->textures = textures;
-    __setup();
+    _upload_mesh();
   }
 
-  Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> elements, ColorCard<glm::vec3> color_card) {
+  Mesh(std::vector<Vertex>&& vertices, std::vector<unsigned int>&& elements, ColorCard<glm::vec3>&& color_card) {
     this->vertices = vertices;
     this->elements = elements;
     this->colors = color_card;
-    __setup();
+    _upload_mesh();
   }
 
-  void __setup() {
-    glGenVertexArrays(1, &this->vao);
-    glBindVertexArray(vao);
+  void draw(const Shader& shader, std::string prefix = {}, DrawMode mode = DrawMode::Auto) {
+    if (!prefix.empty() && !prefix.ends_with('.')) {
+      prefix.push_back('.');
+    }
 
-    glGenBuffers(1, &this->vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, this->vbo);
+    switch (mode) {
+      case DrawMode::Auto:
+        if (!textures.empty()) {
+          draw(shader, prefix, DrawMode::Texture);
+        } else {
+          draw(shader, prefix, DrawMode::Color);
+        }
+        break;
+
+      case DrawMode::Texture:
+        _draw_tex_impl(shader, prefix);
+        break;
+
+      case DrawMode::Color:
+        _draw_color_impl(shader, prefix);
+        break;
+
+      default:
+        std::cerr << "Mesh may be not drawn normally.\n";
+    };
+  }
+
+  void _upload_mesh() {
+    glGenVertexArrays(1, &gl_vao);
+    glBindVertexArray(gl_vao);
+
+    glGenBuffers(1, &gl_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, gl_vbo);
     glBufferData(GL_ARRAY_BUFFER, vertices.size()*sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
 
-    glGenBuffers(1, &this->ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->ebo);
+    glGenBuffers(1, &gl_ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, elements.size()*sizeof(unsigned int), elements.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
@@ -101,90 +132,88 @@ struct Mesh {
     glBindVertexArray(0);
   }
 
-  void __draw_color_impl(const Shader& shader, const std::string& material_prefix = {}) {
-    shader.setVec3(material_prefix + "ambient", colors.ambient);
-    shader.setVec3(material_prefix + "diffuse", colors.diffuse);
-    shader.setVec3(material_prefix + "specular", colors.specular);
+  void _draw_color_impl(const Shader& shader, const std::string& prefix = {}) {
+    shader.setVec3(prefix + "ambient", colors.ambient);
+    shader.setVec3(prefix + "diffuse", colors.diffuse);
+    shader.setVec3(prefix + "specular", colors.specular);
 
     shader.use();
-    glBindVertexArray(this->vao);
+    glBindVertexArray(gl_vao);
     glDrawElements(GL_TRIANGLES, elements.size(), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
   }
 
-  void __draw_tex_impl(const Shader& shader, const std::string& material_prefix = {}) {
-    uint32_t diffuse_n{1}, specular_n{1};
+  void _draw_tex_impl(const Shader& shader, const std::string& prefix = {}) {
+    uint32_t ambient_n{1}, diffuse_n{1}, specular_n{1};
 
     for (uint32_t i = 0; i < textures.size(); ++i) {
       glActiveTexture(GL_TEXTURE0 + i);
       Texture& t = textures[i];
       std::string name{};
 
-      if (t.type == "texture_diffuse") {
+      if (t.type == "texture_ambient") {
+        fmt::format_to(std::back_inserter(name), "{}{}", t.type, std::to_string(ambient_n++));
+      } else if (t.type == "texture_diffuse") {
         fmt::format_to(std::back_inserter(name), "{}{}", t.type, std::to_string(diffuse_n++));
       } else if (t.type == "texture_specular") {
         fmt::format_to(std::back_inserter(name), "{}{}", t.type, std::to_string(specular_n++));
       }
+      //fmt::print("sampler2D name: {}\n", prefix + name);
 
-      shader.setInt((material_prefix + name).c_str(), i);
+      shader.setInt((prefix + name).c_str(), i);
       glBindTexture(GL_TEXTURE_2D, textures[i].id);
     }
     glActiveTexture(0);
 
     shader.use();
-    glBindVertexArray(this->vao);
+    glBindVertexArray(gl_vao);
     glDrawElements(GL_TRIANGLES, elements.size(), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
   }
 
-  bool draw(const Shader& shader, DrawMode mode = DrawMode::None, std::string material_prefix = {}) {
-    if (!material_prefix.empty() && !material_prefix.ends_with('.')) {
-      material_prefix.push_back('.');
-    }
-
-    if (mode == DrawMode::Color) {
-      __draw_color_impl(shader, material_prefix);
-    } else if (mode == DrawMode::Texture) {
-      __draw_tex_impl(shader, material_prefix);
-    } else {
-      return false;
-    }
-    return true;
-  }
-
 }; // struct Mesh
 
+
 struct Model {
+  std::vector<Mesh> meshes;
+  fs::path file_path;
+  glm::mat4 model_matrix{1.0f};
+  std::unordered_map<std::string, Texture> _texture_cache;
+
   Model() = default;
-  Model(const std::string_view path_sv) {
-    load_model(path_sv);
+  explicit Model(const std::string_view path_sv) {
+    load(path_sv);
   }
 
-  std::vector<Mesh> meshes;
-  std::string directory{};
-
-  void load_model(const std::string_view path_sv) {
+  void load(const std::string_view path_sv) {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path_sv.data(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
       std::cerr << "ERROR::ASSIMP::" << importer.GetErrorString() << '\n';
-      return;
+      THROW_RT_ERR
     }
-    process_node(scene->mRootNode, scene);
+    file_path = std::filesystem::path{path_sv};
+    _process_node(scene->mRootNode, scene);
   }
 
-  void process_node(aiNode* node, const aiScene* scene) {
+  void draw(const Shader& shader, const std::string& prefix = {}, DrawMode mode = DrawMode::Auto) {
+    for (auto& mesh : meshes) {
+      mesh.draw(shader, prefix, mode);
+    }
+  }
+
+  void _process_node(aiNode* node, const aiScene* scene) {
     for (int i = 0; i < node->mNumMeshes; ++i) {
       aiMesh* _mesh = scene->mMeshes[node->mMeshes[i]];
-      process_mesh(_mesh, scene);
+      _process_mesh(_mesh, scene);
     }
     for (int i = 0; i < node->mNumChildren; ++i) {
-      process_node(node->mChildren[i], scene);
+      _process_node(node->mChildren[i], scene);
     }
   }
 
-  void process_mesh(aiMesh* mesh, const aiScene* scene) {
+  void _process_mesh(aiMesh* mesh, const aiScene* scene) {
     std::vector<Vertex> _vertices;
     std::vector<unsigned int> _elements;
     std::vector<Texture> _textures;
@@ -193,8 +222,7 @@ struct Model {
     for (int i = 0; i < mesh->mNumVertices; ++i) {
       auto& _vert = mesh->mVertices[i];
       auto& _norm = mesh->mNormals[i];
-      // fmt::print("Vert: {}, {}, {}\n", _vert.x, _vert.y, _vert.z);
-      // fmt::print("Norm: {}, {}, {}\n", _norm.x, _norm.y, _norm.z);
+
       Vertex v;
       v.position = {_vert.x, _vert.y, _vert.z};
       v.normal = {_norm.x, _norm.y, _norm.z};
@@ -212,69 +240,75 @@ struct Model {
     for (int i = 0; i < mesh->mNumFaces; ++i) {
       auto& _face = mesh->mFaces[i];
       for (int j = 0; j < _face.mNumIndices; ++j) {
-        // fmt::print("{} ", _face.mIndices[j]);
         _elements.push_back(_face.mIndices[j]);
       }
     }
-    putchar('\n');
 
     if (mesh->mMaterialIndex >= 0) {
       aiMaterial* _mtl = scene->mMaterials[mesh->mMaterialIndex];
-      // fmt::print("MtlName: {}\n", _mtl->GetName().data);
+      _color_card = _load_material_colors(_mtl);
 
-      _color_card = load_material_colors(_mtl);
-      // fmt::print("Kd: {},{},{}\n", _color_card.diffuse.r, _color_card.diffuse.g, _color_card.diffuse.b);
+      if (_mtl->GetTextureCount(aiTextureType_AMBIENT) ||
+          _mtl->GetTextureCount(aiTextureType_DIFFUSE) ||
+          _mtl->GetTextureCount(aiTextureType_SPECULAR)) {
 
-      if (_mtl->GetTextureCount(aiTextureType_DIFFUSE) && _mtl->GetTextureCount(aiTextureType_SPECULAR)) {
-        std::vector<Texture> diffuse_maps = load_material_textures(_mtl, aiTextureType_DIFFUSE, "texture_diffuse");
+        std::vector<Texture> ambient_maps = _load_material_textures(_mtl, aiTextureType_AMBIENT, "texture_ambient");
+        _textures.insert(_textures.end(), ambient_maps.begin(), ambient_maps.end());
+
+        std::vector<Texture> diffuse_maps = _load_material_textures(_mtl, aiTextureType_DIFFUSE, "texture_diffuse");
         _textures.insert(_textures.end(), diffuse_maps.begin(), diffuse_maps.end());
-        std::vector<Texture> specular_maps = load_material_textures(_mtl, aiTextureType_SPECULAR, "texture_specular");
-        _textures.insert(_textures.end(), specular_maps.begin(), specular_maps.end());
+
+        std::vector<Texture> specular_maps = _load_material_textures(_mtl, aiTextureType_SPECULAR, "texture_specular");
+
+       _textures.insert(_textures.end(), specular_maps.begin(), specular_maps.end());
+
+        // fmt::print("ambient: {}, diffuse: {}, specular: {}\n", ambient_maps.size(), diffuse_maps.size(), specular_maps.size());
       }
     }
+
+    // Construct and store mesh
     if (_textures.empty()) {
-      this->meshes.emplace_back(_vertices, _elements, _color_card);
-      // std::cout << "Colored mesh\n";
+      meshes.emplace_back(std::move(_vertices), std::move(_elements), std::move(_color_card));
     } else {
-      this->meshes.emplace_back(_vertices, _elements, _textures);
-      // std::cout << "Textured mesh\n";
+      meshes.emplace_back(std::move(_vertices), std::move(_elements), std::move(_textures));
     }
   }
 
-  ColorCard<glm::vec3> load_material_colors(aiMaterial* mtl) {
+  ColorCard<glm::vec3> _load_material_colors(aiMaterial* mtl) {
     ColorCard<glm::vec3> card;
     ColorCard<aiColor4D> _card;
 
     mtl->Get(AI_MATKEY_COLOR_AMBIENT, _card.ambient);
     card.ambient = {_card.ambient.r, _card.ambient.g, _card.ambient.b};
+
     mtl->Get(AI_MATKEY_COLOR_DIFFUSE, _card.diffuse);
     card.diffuse = {_card.diffuse.r, _card.diffuse.g, _card.diffuse.b};
+
     mtl->Get(AI_MATKEY_COLOR_SPECULAR, _card.specular);
     card.specular = {_card.specular.r, _card.specular.g, _card.specular.b};
 
     return card;
   }
 
-  std::vector<Texture> load_material_textures(aiMaterial* mtl, aiTextureType type, std::string type_s) {
-    // TODO: not tested
-    std::vector<Texture> textures;
+  std::vector<Texture> _load_material_textures(aiMaterial* mtl, aiTextureType type, const std::string& type_s) {
+    // TODO: need more tests
+    std::vector<Texture> _textures;
+
     for (int i = 0; i < mtl->GetTextureCount(type); ++i) {
-      aiString str;
-      mtl->GetTexture(type, i, &str);
-      Texture texture;
-      texture.id = kit::make_texture(std::string(str.data), directory);
-      texture.type = type_s;
-      texture.path = std::string(str.data);
-      textures.push_back(texture);
+      aiString path_as;
+      mtl->GetTexture(type, i, &path_as);
+      std::string path_s{(file_path.parent_path() / fs::path{path_as.C_Str()}).string()};
+
+      if (_texture_cache.find(path_s) != _texture_cache.end()) {
+        _textures.push_back(_texture_cache[path_s]);
+      } else {
+        _textures.emplace_back(kit::make_texture(path_s), type_s, path_s);
+        _texture_cache[path_s] = _textures.back();
+      }
     }
-    return textures;
+    return _textures;
   }
 
-  void draw(const Shader& shader, const std::string& prefix = {}) {
-    for (Mesh& mesh : this->meshes) {
-      mesh.draw(shader, Mesh::DrawMode::Color, prefix);
-    }
-  }
 }; // Model
 
 }

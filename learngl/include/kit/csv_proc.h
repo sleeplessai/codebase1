@@ -28,7 +28,7 @@ concept __type_in_types = (std::is_same_v<T, Types> || ...);
 template<typename T>
 concept __var_data_type = __type_in_types<T, __Supported_types>;
 
-std::vector<std::string> __split(const std::string& s, char delim) {
+inline std::vector<std::string> __split(const std::string& s, char delim) {
     std::vector<std::string> res;
     for (auto token : std::ranges::split_view{s, delim}) {
         res.emplace_back(token.begin(), token.end());
@@ -36,7 +36,7 @@ std::vector<std::string> __split(const std::string& s, char delim) {
     return res;
 }
 
-std::string __remove_space(std::string& s) {
+inline std::string __remove_space(std::string& s) {
     std::string ns{};
     for (auto c : s) {
         if (c == ' ' || c == '\t') continue;

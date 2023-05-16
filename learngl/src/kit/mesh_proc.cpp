@@ -56,9 +56,9 @@ int main() {
   if (!win) ::exit(-1);
 
   // __Mesh_func();
-  Shader pro {"assets/pro.vert", "assets/pro.frag"};
+  Shader pro {"shaders/kit/pro.vert", "shaders/kit/pro.frag"};
   Model cornell_box;
-  cornell_box.load_model("assets/CornellBox-Original.obj");
+  cornell_box.load("assets/models/cornell_box/CornellBox-Original.obj");
 
   CamInst& cam = CamInst::get_instance();
   cam.position = {0.007245103, 1.3137426, 5.303344};
