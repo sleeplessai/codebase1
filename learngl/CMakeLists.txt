@@ -36,6 +36,10 @@ add_library(ImGuiGL ${imgui_gl})
 target_include_directories(ImGuiGL PUBLIC "include/imgui")
 set(link_libs ${link_libs} ImGuiGL)
 
+file(GLOB_RECURSE nvpro_gl CONFIGURE_DEPENDS "lib/nvpro/*.cpp" "lib/nvpro/*.hpp")
+add_library(NVProGL ${nvpro_gl})
+target_include_directories(NVProGL PUBLIC "lib/nvpro")
+set(link_libs ${link_libs} NVProGL)
 
 file(GLOB source_glob CONFIGURE_DEPENDS "src/*")
 set(chapter_collection "")
